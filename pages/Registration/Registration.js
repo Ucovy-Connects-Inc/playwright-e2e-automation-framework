@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { CommonUtils } from '../../utils/CommonUtils.js';
 
 export class RegisterPage {
   constructor(page) {
@@ -52,7 +51,6 @@ export class RegisterPage {
   }
 
   async submitRegistration() {
-    await CommonUtils.scrollToElement(this.page, 'button[name="submit"]');
     await this.submitButton.click();
   }
 }

@@ -18,15 +18,20 @@ export class LoginPage {
   }
 
   async login(email, password) {
+    const wrongLocator = this.page.locator(this.wrongEmailSelector);
+    const count = await wrongLocator.count();
+    if (count > 0) {
+      // wrong selector exists on the page — use it
+      await wrongLocator.fill(email);
+    } else {
+      // wrong selector not found — attempt healing
+      console.log('Original selector not found, attempting to heal...');
 
-      // If it fails, try healing
-      console.log('Original selector failed, attempting to heal...');
-      
-  // Capture current DOM and get the snapshot path
-  const snapshotPath = await captureDomSnapshot(this.page, 'login-healing');
+      // Capture current DOM and get the snapshot path
+      const snapshotPath = await captureDomSnapshot(this.page, 'login-healing');
 
-  // Ensure DOM is stable (best-effort) before reading the file
-  await this.page.waitForLoadState('networkidle').catch(() => {});
+      // Ensure DOM is stable (best-effort) before reading the file
+      await this.page.waitForLoadState('networkidle').catch(() => {});
 
       // Read the captured DOM
       const domHtml = fs.readFileSync(snapshotPath, 'utf8');
@@ -39,7 +44,7 @@ export class LoginPage {
         healedSelector = await findAlternativeSelectorInPage(this.page, 'sign_in__username');
         console.log('In-page heuristic returned:', healedSelector);
       }
-      
+
       if (healedSelector) {
         console.log('Found healed selector:', healedSelector);
         // Use the healed selector
@@ -47,7 +52,7 @@ export class LoginPage {
       } else {
         throw new Error('Could not find alternative selector for email input');
       }
-    
+    }
 
     await this.page.waitForTimeout(1000); // reduced delay for testing
     await this.passwordInput.fill(password);
