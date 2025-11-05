@@ -101,7 +101,8 @@ export function findAlternativeSelector(domHtml, hint) {
 
 export default {
     captureDomSnapshot,
-    findAlternativeSelector
+    findAlternativeSelector,
+    findAlternativeSelectorInPage
 };
 
 /**
@@ -149,3 +150,91 @@ export async function findAlternativeSelectorInPage(page, hint) {
     }, hint);
     return selector;
 }
+
+/**
+ * Healing action: Click on an element using original selector or healed selector if original not found
+ * @param {import('@playwright/test').Page} page
+ * @param {string} originalSelector
+ * @param {string} hintText
+ * @param {string} snapshotFileName
+ */
+export async function healingClick(page, originalSelector, hintText, snapshotFileName = 'healing-click') {
+    const locator = page.locator(originalSelector);
+    const count = await locator.count();
+    
+    if (count > 0) {
+        // Original selector exists — use it
+        await locator.click();
+        console.log(`[HealingClick] Used original selector: ${originalSelector}`);
+    } else {
+        // Original selector not found — attempt healing
+        console.log(`[HealingClick] Original selector not found: ${originalSelector}, attempting to heal...`);
+        
+        const snapshotPath = await captureDomSnapshot(page, snapshotFileName);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        
+        const domHtml = fs.readFileSync(snapshotPath, 'utf8');
+        console.log(`[HealingClick] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
+        
+        let healedSelector = findAlternativeSelector(domHtml, hintText);
+        if (!healedSelector) {
+            console.log('[HealingClick] No selector found in snapshot; attempting in-page heuristic...');
+            healedSelector = await findAlternativeSelectorInPage(page, hintText);
+            console.log(`[HealingClick] In-page heuristic returned: ${healedSelector}`);
+        }
+        
+        if (healedSelector) {
+            console.log(`[HealingClick] Found healed selector: ${healedSelector}`);
+            await page.locator(healedSelector).click();
+        } else {
+            throw new Error(`[HealingClick] Could not find alternative selector for hint: ${hintText}`);
+        }
+    }
+}
+
+/**
+ * Healing action: Fill/type text into an element using original selector or healed selector if original not found
+ * @param {import('@playwright/test').Page} page
+ * @param {string} originalSelector
+ * @param {string} text
+ * @param {string} hintText
+ * @param {string} snapshotFileName
+ */
+export async function healingFill(page, originalSelector, text, hintText, snapshotFileName = 'healing-fill') {
+    const locator = page.locator(originalSelector);
+    const count = await locator.count();
+    
+    if (count > 0) {
+        // Original selector exists — use it
+        await locator.fill(text);
+        console.log(`[HealingFill] Used original selector: ${originalSelector}`);
+    } else {
+        // Original selector not found — attempt healing
+        console.log(`[HealingFill] Original selector not found: ${originalSelector}, attempting to heal...`);
+        
+        const snapshotPath = await captureDomSnapshot(page, snapshotFileName);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        
+        const domHtml = fs.readFileSync(snapshotPath, 'utf8');
+        console.log(`[HealingFill] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
+        
+        let healedSelector = findAlternativeSelector(domHtml, hintText);
+        if (!healedSelector) {
+            console.log('[HealingFill] No selector found in snapshot; attempting in-page heuristic...');
+            healedSelector = await findAlternativeSelectorInPage(page, hintText);
+            console.log(`[HealingFill] In-page heuristic returned: ${healedSelector}`);
+        }
+        
+        if (healedSelector) {
+            console.log(`[HealingFill] Found healed selector: ${healedSelector}`);
+            await page.locator(healedSelector).fill(text);
+        } else {
+            throw new Error(`[HealingFill] Could not find alternative selector for hint: ${hintText}`);
+        }
+    }
+}
+
+/**
+ * Alias for healingFill - type text into element with healing
+ */
+export const healingType = healingFill;
