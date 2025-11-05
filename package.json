@@ -10,14 +10,6 @@
     "test:chrome": "playwright test --project=chromium",
     "test:firefox": "playwright test --project=firefox",
     "test:webkit": "playwright test --project=webkit",
-    "test:registration": "playwright test TC_ADV_001",
-    "test:cart": "playwright test TC_ADV_002",
-    "test:api": "playwright test TC_ADV_003",
-    "test:responsive": "playwright test TC_ADV_004",
-    "report": "playwright show-report",
-    "trace": "playwright show-trace",
-    "test:test2": "cross-env TARGET=test2 playwright test",
-    "test:test3": "cross-env TARGET=test3 playwright test",
     "test:priority": "node ./scripts/run-priority-tests.js"
   },
   "keywords": [
@@ -30,7 +22,7 @@
   "author": "Your Name",
   "license": "ISC",
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
+    "@playwright/test": "^1.56.1",
     "@types/node": "^20.19.24",
     "@types/xlsx": "^0.0.35",
     "cross-env": "^7.0.3",

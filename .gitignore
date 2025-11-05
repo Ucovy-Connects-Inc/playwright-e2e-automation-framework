@@ -35,3 +35,6 @@ npm-debug.log*
 
 # Playwright
 playwright/.cache/
+
+# Others
+snapshots/

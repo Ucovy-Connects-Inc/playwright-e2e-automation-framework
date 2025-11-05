@@ -18,20 +18,6 @@ test.describe("Login Page Tests", () => {
     expect(errorText).toContain("Username or password is incorrect");
 
     await registrationPage.clickOnRegisterAccount();
-    await registrationPage.fillRegistrationForm(
-      "John",
-      "Doe",
-      "dkjdk",
-      "251552424",
-      "01/15/2010",
-      "123 Main St",
-      "Apt 4B",
-      "Springfield",
-      "12345",
-      "555-123-4567",
-      "555-987-6543",
-      "Acme Corp"
-    );
 
     await authenticatedPage.waitForTimeout(10000);
   });
