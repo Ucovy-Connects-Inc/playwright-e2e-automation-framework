@@ -1,21 +1,21 @@
 const { defineConfig, devices } = require("@playwright/test");
-
-// Read the environment variable 'ENV' from the system. 
+ 
+// Read the environment variable 'ENV' from the system.
 // If it's not set, default to "test".
 const ENV = process.env.ENV || "test";
 // Making the ENV variable set to GLOBAL
 process.env.ENV = ENV;
-
+ 
 // This allows the framework to easily switch between test and dev environments.
 const baseURLs = {
-    test: "https://my.marathon-health.com/login",
+    prod: "https://my.marathon-health.com/login",
     dev: "https://stage.my.marathon-health.com/login",
-    qa: "https://qa.my.marathon-health.com/login", // QA env without CAPTCHA
+    qa: "https://my.qa.marathon.health/login", // QA env without CAPTCHA
 };
 // Simple env-driven overrides (keep it minimal per request)
 const retries = Number(process.env.RETRIES) || 0;
 const workers = Number(process.env.WORKERS) || undefined;
-
+ 
 module.exports = defineConfig({
     testDir: "./tests",
     fullyParallel: true,
@@ -23,9 +23,9 @@ module.exports = defineConfig({
     retries,
     workers,
     reporter: [
-        ["html", { open: "never" }], 
+        ["html", { open: "always" }],
         ["list"],
-        ["allure-playwright", { 
+        ["allure-playwright", {
             outputFolder: "allure-results",
             suiteTitle: "Playwright E2E Tests"
         }]
@@ -36,15 +36,15 @@ module.exports = defineConfig({
         headless: !!process.env.HEADLESS || false,
         acceptDownloads: true,
         trace: "on-first-retry",
-        // Add user agent to potentially bypass some CAPTCHA systems
-        userAgent: process.env.USER_AGENT || undefined,
-        // Add extra HTTP headers for test environments
-        extraHTTPHeaders: {
-            'X-Test-Mode': 'true',
-            'X-Automation': 'playwright'
-        }
+        // // Add user agent to potentially bypass some CAPTCHA systems
+        // userAgent: process.env.USER_AGENT || undefined,
+        // // Add extra HTTP headers for test environments
+        // extraHTTPHeaders: {
+        //     'X-Test-Mode': 'true',
+        //     'X-Automation': 'playwright'
+        // }
     },
-    timeout: 1200000,
+    timeout: 10000, //milli seconds
     projects: [
         {
             name: "chromium",

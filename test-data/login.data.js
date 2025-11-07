@@ -20,6 +20,11 @@ export const data = {
     zipCode: "90210",
     phoneNumber: CommonUtils.generateValidPhoneNumber(),
     homePhone: "", // Optional home phone
-    employer: "Test Company"
-  }
+    employer: "Demo Employer"
+  },
+
+  admin: {
+    username: "munaztest",
+    password: "Default1"
+    }
 };
