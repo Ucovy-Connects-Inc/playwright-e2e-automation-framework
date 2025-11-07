@@ -1,5 +1,5 @@
 // @ts-nocheck
-
+import { CommonUtils } from "../../utils/CommonUtils.js";
 export class RegisterPage {
   constructor(page) {
     this.page = page;
@@ -21,7 +21,7 @@ export class RegisterPage {
     this.relationOptionChild = page.getByText('Child');
     this.registerAsChildButton = page.getByRole('button', { name: 'Register as Child' });
     this.employeeOption = page.getByText('Employee', { exact: true });
-    this.employerInput = page.getByRole('textbox', { name: "Employee's Employer or Union" });
+    
     this.submitButton = page.getByRole('button', { name: 'submit' });
   }
 
@@ -47,7 +47,9 @@ export class RegisterPage {
     await this.relationOptionChild.click();
     await this.registerAsChildButton.click();
     await this.employeeOption.click();
-    await this.employerInput.fill(employer);
+    await CommonUtils.waitForVisible(this.page, '//input[@id="proposed_employer_name"]');
+    await this.page.locator('//input[@id="proposed_employer_name"]').fill(employer);
+   
   }
 
   async submitRegistration() {

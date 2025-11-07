@@ -10,7 +10,11 @@
     "test:chrome": "playwright test --project=chromium",
     "test:firefox": "playwright test --project=firefox",
     "test:webkit": "playwright test --project=webkit",
-    "test:priority": "node ./scripts/run-priority-tests.js"
+    "test:priority": "node ./scripts/run-priority-tests.js",
+    "allure:generate": "allure generate allure-results --clean -o allure-report",
+    "allure:open": "allure open allure-report",
+    "allure:serve": "allure serve allure-results",
+    "test:allure": "playwright test && npm run allure:generate && npm run allure:open"
   },
   "keywords": [
     "playwright",
@@ -23,11 +27,10 @@
   "license": "ISC",
   "devDependencies": {
     "@playwright/test": "^1.56.1",
-    "@types/node": "^20.19.24",
-    "@types/xlsx": "^0.0.35",
+    "allure-commandline": "^2.34.1",
+    "allure-playwright": "^3.4.2",
     "cross-env": "^7.0.3",
-    "exceljs": "^4.3.0",
-    "typescript": "^5.3.0"
+    "exceljs": "^4.3.0"
   },
   "dependencies": {
     "xlsx": "^0.18.5"

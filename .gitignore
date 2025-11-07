@@ -9,6 +9,16 @@ playwright-report/
 screenshots/
 downloads/
 
+# Allure Reports
+allure-results/
+allure-report/
+
+# BDD Reports
+bdd-reports/
+cucumber-report.json
+cucumber-report.html
+failed-*.png
+
 # IDE
 .vscode/
 .idea/
@@ -36,5 +46,8 @@ npm-debug.log*
 # Playwright
 playwright/.cache/
 
+# Snapshot files (keep folder, ignore contents)
+snapshots/*
+!snapshots/.gitkeep
+
 # Others
-snapshots/
