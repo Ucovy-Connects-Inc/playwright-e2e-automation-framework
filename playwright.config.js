@@ -10,6 +10,7 @@ process.env.ENV = ENV;
 const baseURLs = {
     test: "https://my.marathon-health.com/login",
     dev: "https://stage.my.marathon-health.com/login",
+    qa: "https://qa.my.marathon-health.com/login", // QA env without CAPTCHA
 };
 // Simple env-driven overrides (keep it minimal per request)
 const retries = Number(process.env.RETRIES) || 0;
@@ -35,6 +36,13 @@ module.exports = defineConfig({
         headless: !!process.env.HEADLESS || false,
         acceptDownloads: true,
         trace: "on-first-retry",
+        // Add user agent to potentially bypass some CAPTCHA systems
+        userAgent: process.env.USER_AGENT || undefined,
+        // Add extra HTTP headers for test environments
+        extraHTTPHeaders: {
+            'X-Test-Mode': 'true',
+            'X-Automation': 'playwright'
+        }
     },
     timeout: 1200000,
     projects: [
