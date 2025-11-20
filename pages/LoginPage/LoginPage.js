@@ -71,7 +71,7 @@ export class LoginPage {
   }
 
   async isLaunguageSectingVisible() {
-    const languageSelector = this.page.locator('//div[@class="_language-selector__container_1v4f3_1"]');
+    const languageSelector =  this.page.locator('//div[text()="English"]');
     return await languageSelector.isVisible();
   }
 

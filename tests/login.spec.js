@@ -38,7 +38,7 @@ test.describe("Login Page Tests", () => {
     const loginPage = new LoginPage(authenticatedPage);
     await checkpointManager.createCheckpoint("Validate Logo Visibility on Login Page", await loginPage.isLogoVisibleOnLoginPage(), true, "Logo should be visible on Login Page");
     await checkpointManager.createCheckpoint("Validate 'Forgot Password' Link Visibility on Login Page", await loginPage.isLinksOnLoginPage('Forgot Password?'), true, "'Forgot Password' link should be visible on Login Page");
-    await checkpointManager.createCheckpoint("Validate iOS App Store Link Visibility on Login Page", await loginPage.isLinksOnLoginPage('iOS'), true, "'iOS App Store' link should be visible on Login Page");
+    await checkpointManager.createCheckpoint("Validate iOS App Store Link Visibility on Login Page", await loginPage.isLinksOnLoginPage('iPhone'), true, "'iOS App Store' link should be visible on Login Page");
     await checkpointManager.createCheckpoint("Validate Android App Store Link Visibility on Login Page", await loginPage.isLinksOnLoginPage('Android'), true, "'Android App Store' link should be visible on Login Page");
     await checkpointManager.createCheckpoint("Validate Launguage Selection Dropdown Visibility on Login Page", await loginPage.isLaunguageSectingVisible(), true, "Language Selection Dropdown should be visible on Login Page");
     await loginPage.clickOnLanguageSelector();

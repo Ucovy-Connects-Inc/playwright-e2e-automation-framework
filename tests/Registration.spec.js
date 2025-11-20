@@ -24,8 +24,10 @@ test.describe(" Registration Page Tests", () => {
       registration.state,
       registration.zipCode,
       registration.phoneNumber,
-      registration.password
+      "",
+      "Test Employer Inc."
     );
+
     
 
   });
