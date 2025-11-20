@@ -1,20 +1,26 @@
 const { defineConfig, devices } = require("@playwright/test");
- 
-// Read the environment variable 'ENV' from the system.
-// If it's not set, default to "test".
-const ENV = process.env.ENV || "test";
+require('dotenv').config(); // Load environment variables from .env file
+
+// Read the environment variable 'ENV' from the system or .env file
+const ENV = process.env.ENV || "qa";
 // Making the ENV variable set to GLOBAL
 process.env.ENV = ENV;
- 
-// This allows the framework to easily switch between test and dev environments.
-const baseURLs = {
-    prod: "https://my.marathon-health.com/login",
-    dev: "https://stage.my.marathon-health.com/login",
-    qa: "https://my.qa.marathon.health/login", // QA env without CAPTCHA
+
+// Get base URL directly from environment variables
+const getBaseURL = () => {
+    switch(ENV) {
+        case 'prod': return process.env.PROD_BASE_URL;
+        case 'dev': return process.env.DEV_BASE_URL;
+        case 'qa': return process.env.QA_BASE_URL;
+        default: return process.env.QA_BASE_URL;
+    }
 };
-// Simple env-driven overrides (keep it minimal per request)
+// Environment-driven overrides from .env file
 const retries = Number(process.env.RETRIES) || 0;
 const workers = Number(process.env.WORKERS) || undefined;
+const headless = process.env.HEADLESS === 'true' || !!process.env.CI;
+const actionTimeout = Number(process.env.ACTION_TIMEOUT) || 30000;
+const testTimeout = Number(process.env.TEST_TIMEOUT) || 60000;
  
 module.exports = defineConfig({
     testDir: "./tests",
@@ -31,24 +37,33 @@ module.exports = defineConfig({
         }]
     ],
     use: {
-        baseURL: baseURLs[ENV],
-        actionTimeout: 600000,
-        headless: !!process.env.HEADLESS || false,
+        baseURL: getBaseURL(),
+        actionTimeout: actionTimeout,
+        headless: headless,
         acceptDownloads: true,
-        trace: "on-first-retry",
-        // // Add user agent to potentially bypass some CAPTCHA systems
-        // userAgent: process.env.USER_AGENT || undefined,
-        // // Add extra HTTP headers for test environments
-        // extraHTTPHeaders: {
-        //     'X-Test-Mode': 'true',
-        //     'X-Automation': 'playwright'
-        // }
+        trace: "on",                    // Always collect trace
+        screenshot: "on",               // Always take screenshots
+        video: "on",                   // Always record video
+        
+        // Add extra HTTP headers for automation if secret is configured
+        extraHTTPHeaders: process.env.AUTOMATION_SECRET ? {
+            'X-Automation-Key': process.env.AUTOMATION_SECRET,
+            'X-Test-Framework': 'Playwright'
+        } : {}
     },
-    timeout: 10000, //milli seconds
+    timeout: testTimeout,
     projects: [
         {
             name: "chromium",
             use: { ...devices["Desktop Chrome"] },
+        },
+        {
+            name: "firefox",
+            use: { ...devices["Desktop Firefox"] },
+        },
+        {
+            name: "webkit", 
+            use: { ...devices["Desktop Safari"] },
         },
     ],
 });

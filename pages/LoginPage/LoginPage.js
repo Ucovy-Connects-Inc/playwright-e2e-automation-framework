@@ -9,7 +9,9 @@ export class LoginPage {
     this.wrongEmailSelector = '//input[@id="wrong_email_id"]';
     this.passwordInput = '//input[@id="sign_in__password"]';
     this.loginButton = page.locator('//button[text()="Sign In"]');
-    this.errorMessage = page.locator('//div[text()="Username or password is incorrect"]');
+    this.errorMessage = page.locator('.MuiAlert-message');
+    this.loginSuccessIndicator = page.locator('//h1[text()="Hi, Culver! How can we help you today?"]');
+    this.showpasswordToggle = page.locator('//button[@class="_password-field__toggle-visibility_qol9b_1"]');
   }
  
   async navigate(url = '/') {
@@ -24,8 +26,37 @@ export class LoginPage {
     await healingFill(this.page, this.passwordInput, password, 'sign_in__password', 'loginPass-healing');
     await this.loginButton.click();
   }
+
+  async enterUsername(username) {
+    await healingFill(this.page, this.wrongEmailSelector, username, 'sign_in__username', 'login-healing');
+  }
+
+  async enterPassword(password) {
+    await healingFill(this.page, this.passwordInput, password, 'sign_in__password', 'loginPass-healing');
+  }
+  async clickLogin() {
+    await this.loginButton.click();
+  }
  
-  async getErrorMessage() {
+  async getErrorMessage()  {
     return this.errorMessage.textContent();
   }
+
+  async verifyLoginSuccess() {
+    await this.page.waitForLoadState('networkidle');
+    return this.loginSuccessIndicator.isVisible();
+    
+  }
+
+  async clickShowPassword() {
+    await this.showpasswordToggle.click();
+  }
+
+  async verifyPasswordVisible(expectedPassword) {
+    const passwordValue = await this.page.locator('//input[@id="sign_in__password" and @type="password"]');
+    return passwordValue.isVisible();
+  }
+
+
+
 }
