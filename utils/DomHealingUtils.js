@@ -238,3 +238,50 @@ export async function healingFill(page, originalSelector, text, hintText, snapsh
  * Alias for healingFill - type text into element with healing
  */
 export const healingType = healingFill;
+
+/**
+ * Check if element is visible with self-healing capabilities
+ * @param {import('@playwright/test').Page} page - Playwright page object
+ * @param {string} originalSelector - Original selector to try first
+ * @param {string} hintText - Text hint to help find alternative selector
+ * @param {string} snapshotFileName - Name for DOM snapshot file
+ * @returns {Promise<boolean>} - True if element is visible, false otherwise
+ */
+export async function healingIsVisible(page, originalSelector, hintText, snapshotFileName = 'healing-visible') {
+    const locator = page.locator(originalSelector);
+    const count = await locator.count();
+
+    if (count > 0) {
+        // Original selector exists — check visibility
+        console.log(`[HealingVisible] Used original selector: ${originalSelector}`);
+        return await locator.isVisible();
+    } else {
+        // Original selector not found, attempt healing
+        console.log(`[HealingVisible] Original selector not found: ${originalSelector}, attempting to heal...`);
+        
+        // Save DOM snapshot for analysis
+        const domHtml = await page.content();
+        const snapshotPath = path.resolve(process.cwd(), `snapshots/${snapshotFileName}.html`);
+        if (!fs.existsSync(path.dirname(snapshotPath))) {
+            fs.mkdirSync(path.dirname(snapshotPath), { recursive: true });
+        }
+        fs.writeFileSync(snapshotPath, domHtml);
+        console.log(`[HealingVisible] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
+        
+        // Try to find healed selector
+        let healedSelector = findAlternativeSelector(domHtml, hintText);
+        if (!healedSelector) {
+            console.log('[HealingVisible] No selector found in snapshot; attempting in-page heuristic...');
+            healedSelector = await findAlternativeSelectorInPage(page, hintText);
+            console.log(`[HealingVisible] In-page heuristic returned: ${healedSelector}`);
+        }
+        
+        if (healedSelector) {
+            console.log(`[HealingVisible] Found healed selector: ${healedSelector}`);
+            return await page.locator(healedSelector).isVisible();
+        } else {
+            console.log(`[HealingVisible] Could not find alternative selector for hint: ${hintText}`);
+            return false; // Return false if element cannot be found
+        }
+    }
+}

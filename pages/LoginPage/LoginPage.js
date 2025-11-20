@@ -1,4 +1,4 @@
-import { captureDomSnapshot, findAlternativeSelector, findAlternativeSelectorInPage, healingFill } from '../../utils/DomHealingUtils.js';
+import { captureDomSnapshot, findAlternativeSelector, findAlternativeSelectorInPage, healingFill, healingIsVisible } from '../../utils/DomHealingUtils.js';
 import fs from 'fs';
 import path from 'path';
  
@@ -10,7 +10,7 @@ export class LoginPage {
     this.passwordInput = '//input[@id="sign_in__password"]';
     this.loginButton = page.locator('//button[text()="Sign In"]');
     this.errorMessage = page.locator('.MuiAlert-message');
-    this.loginSuccessIndicator = page.locator('//h1[text()="Hi, Culver! How can we help you today?"]');
+    this.loginSuccessIndicator = page.locator('//div[contains(@class,"MuiTabs-root _tabs__root_1m7qh_1 tabs")]');
     this.showpasswordToggle = page.locator('//button[@class="_password-field__toggle-visibility_qol9b_1"]');
   }
  
@@ -44,6 +44,7 @@ export class LoginPage {
 
   async verifyLoginSuccess() {
     await this.page.waitForLoadState('networkidle');
+    await this.page.waitForTimeout(2000); 
     return this.loginSuccessIndicator.isVisible();
     
   }
@@ -59,8 +60,8 @@ export class LoginPage {
 
   async isLogoVisibleOnLoginPage() {
     await this.page.waitForLoadState('networkidle');
-    const logo = this.page.locator('//h1[@class="_login__logo-container_15juy_1"]');
-    return await logo.isVisible();
+    // Using self-healing visibility check
+    return await healingIsVisible(this.page, '//h1[@class="_login__logo-container_15juy_1"]', 'login__logo-container', 'logo-healing');
   }
 
   async isLinksOnLoginPage(linkName) {
