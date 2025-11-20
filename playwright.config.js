@@ -6,17 +6,9 @@ const ENV = process.env.ENV || "qa";
 // Making the ENV variable set to GLOBAL
 process.env.ENV = ENV;
 
-// Get base URL directly from environment variables with fallbacks
+// Get base URL from environment variables
 const getBaseURL = () => {
-    const urls = {
-        prod: process.env.PROD_BASE_URL || 'https://my.marathon-health.com',
-        dev: process.env.DEV_BASE_URL || 'https://stage.my.marathon-health.com',
-        qa: process.env.QA_BASE_URL || 'https://my.qa.marathon.health'
-    };
-    
-    const baseURL = urls[ENV] || urls.qa;
-    console.log(` Environment: ${ENV}, Base URL: ${baseURL}`);
-    return baseURL;
+    return process.env[`${ENV.toUpperCase()}_BASE_URL`];
 };
 // Environment-driven overrides from .env file
 const retries = Number(process.env.RETRIES) || 0;
