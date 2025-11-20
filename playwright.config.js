@@ -15,7 +15,7 @@ const getBaseURL = () => {
     };
     
     const baseURL = urls[ENV] || urls.qa;
-    console.log(`🌐 Environment: ${ENV}, Base URL: ${baseURL}`);
+    console.log(` Environment: ${ENV}, Base URL: ${baseURL}`);
     return baseURL;
 };
 // Environment-driven overrides from .env file
