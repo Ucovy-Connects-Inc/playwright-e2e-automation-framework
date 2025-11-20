@@ -58,11 +58,32 @@ jobs:
         
       - name: ⚙️ Configure Environment
         run: |
+          # Create .env file for CI
+          cat > .env << EOF
+          ENV=${{ github.event.inputs.environment }}
+          QA_BASE_URL=https://my.qa.marathon.health
+          DEV_BASE_URL=https://stage.my.marathon-health.com
+          PROD_BASE_URL=https://my.marathon-health.com
+          HEADLESS=true
+          CI=true
+          RETRIES=1
+          WORKERS=2
+          EOF
+          
+          # Also set as environment variables
           echo "ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
-          echo "HEADLESS=true" >> $GITHUB_ENV
-          echo "CI=true" >> $GITHUB_ENV
-          echo "RETRIES=1" >> $GITHUB_ENV
-          echo "WORKERS=2" >> $GITHUB_ENV
+          echo "QA_BASE_URL=https://my.qa.marathon.health" >> $GITHUB_ENV
+          echo "DEV_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
+          echo "PROD_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+          
+      - name: 🔍 Debug Environment Variables
+        run: |
+          echo "🔍 Debugging environment configuration..."
+          echo "ENV: ${{ github.event.inputs.environment }}"
+          echo "Contents of .env file:"
+          cat .env
+          echo "Environment variables:"
+          printenv | grep -E "(ENV|BASE_URL)"
           
       - name: 🔑 Setup CAPTCHA Bypass
         run: |
