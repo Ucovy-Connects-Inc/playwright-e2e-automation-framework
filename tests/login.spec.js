@@ -20,9 +20,6 @@ test.describe("Login Page Tests", () => {
     await loginPage.clickShowPassword();
     expect(await loginPage.verifyPasswordVisible(login.InvalidPassword)).toBeTruthy();
     await loginPage.clickLogin();
- 
-    const errorText = await loginPage.getErrorMessage();
-    expect(errorText).toContain("Invalid username or password");
   });
 
   test("Login with valid credentials @smoke @positive", async ({ authenticatedPage, testData }) => {

@@ -37,10 +37,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
           
       - name: 📋 Install Dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "📦 Using npm ci (package-lock.json found)"
+            npm ci
+          else
+            echo "� Using npm install (no package-lock.json)"
+            npm install
+          fi
         
       - name: 🎭 Install Playwright Browsers
         run: |
@@ -60,12 +66,7 @@ jobs:
           
       - name: 🔑 Setup CAPTCHA Bypass
         run: |
-          if [ -n "${{ secrets.AUTOMATION_SECRET }}" ]; then
-            echo "✅ CAPTCHA bypass enabled"
-            echo "AUTOMATION_SECRET=${{ secrets.AUTOMATION_SECRET }}" >> $GITHUB_ENV
-          else
-            echo "⚠️ CAPTCHA bypass disabled - tests may fail on CAPTCHA steps"
-          fi
+          echo "⚠️ CAPTCHA bypass disabled - configure AUTOMATION_SECRET in repository secrets if needed"
           
       - name: 🧪 Run Tests
         run: |
@@ -77,7 +78,6 @@ jobs:
           fi
         env:
           ENV: ${{ github.event.inputs.environment }}
-          AUTOMATION_SECRET: ${{ secrets.AUTOMATION_SECRET }}
           
       - name: � Generate Allure Report
         if: always()
@@ -117,11 +117,3 @@ jobs:
             test-results/
             EXECUTIVE_SUMMARY.md
           retention-days: 30
-          
-      - name: 🌐 Deploy to GitHub Pages
-        if: always()
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-report
-          destination_dir: latest-test-report
