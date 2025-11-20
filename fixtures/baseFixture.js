@@ -16,7 +16,7 @@ export const baseBest = base.extend({
  },
  authenticatedPage: async ({ authenticatedContext }, use) => {
    const page = await authenticatedContext.newPage();
-   await page.goto('/');
+   await page.goto('/login');
    await use(page); // provide the page to tests
  },
  testData: async ({ }, use, testInfo) => {
