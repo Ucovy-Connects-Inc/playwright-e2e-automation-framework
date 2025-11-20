@@ -57,6 +57,33 @@ export class LoginPage {
     return passwordValue.isVisible();
   }
 
+  async isLogoVisibleOnLoginPage() {
+    await this.page.waitForLoadState('networkidle');
+    const logo = this.page.locator('//h1[@class="_login__logo-container_15juy_1"]');
+    return await logo.isVisible();
+  }
+
+  async isLinksOnLoginPage(linkName) {
+    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForTimeout(2000);
+    const link = this.page.locator(`//a[text()="${linkName}"]`);
+    return await link.isVisible();
+  }
+
+  async isLaunguageSectingVisible() {
+    const languageSelector = this.page.locator('//div[@class="_language-selector__container_1v4f3_1"]');
+    return await languageSelector.isVisible();
+  }
+
+  async clickOnLanguageSelector() {
+    const languageSelector = this.page.locator('//div[text()="English"]');
+    await languageSelector.click();
+  }
+
+  async verifyLanguageOptionsVisible(optionName) {
+    const option = this.page.locator(`//p[text()="${optionName}"]`);
+    return option.isVisible();
+  }
 
 
 }

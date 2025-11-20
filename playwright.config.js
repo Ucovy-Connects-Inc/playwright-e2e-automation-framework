@@ -24,7 +24,6 @@ module.exports = defineConfig({
     retries,
     workers,
     reporter: [
-        ["html", { open: "always" }],
         ["list"],
         ["allure-playwright", {
             outputFolder: "allure-results",
