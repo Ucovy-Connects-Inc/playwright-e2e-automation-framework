@@ -45,6 +45,7 @@ export class LoginPage {
   async verifyLoginSuccess() {
     await this.page.waitForLoadState('networkidle');
     await this.page.waitForTimeout(2000); 
+    
     return this.loginSuccessIndicator.isVisible();
     
   }
