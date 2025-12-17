@@ -14,8 +14,8 @@ export class LoginPage {
     this.showpasswordToggle = page.locator('//button[@class="_password-field__toggle-visibility_qol9b_1"]');
   }
  
-  async navigate(url = '/') {
-    await this.page.goto(url);
+  async navigate() {
+    await this.page.goto("/");
     await this.page.waitForLoadState('domcontentloaded');
   }
  
