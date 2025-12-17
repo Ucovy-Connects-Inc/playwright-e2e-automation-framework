@@ -1,0 +1,161 @@
+name: Login Tests - Production Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_tags:
+        description: 'Test tags to run (e.g., @smoke, @negative, @positive)'
+        required: false
+        default: '@smoke @negative'
+        type: string
+      environment:
+        description: 'Environment to test (qa, prod)'
+        required: false
+        default: 'prod'
+        type: choice
+        options:
+        - qa
+        - prod
+  schedule:
+    - cron: '0 8 * * 1-5'  # Runs at 8 AM UTC, Monday to Friday
+  push:
+    branches:
+      - main
+    paths:
+      - 'tests/login.spec.js'
+      - 'pages/LoginPage/**'
+
+jobs:
+  login-prod-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "📦 Using npm ci (package-lock.json found)"
+            npm ci
+          else
+            echo "📦 Using npm install (no package-lock.json)"
+            npm install
+          fi
+
+      - name: 🎭 Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: ⚙️ Setup Environment Variables
+        run: |
+          ENV_INPUT="${{ github.event.inputs.environment || 'prod' }}"
+          echo "ENV=${ENV_INPUT}" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
+          echo "HEADLESS=true" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_HEADLESS=true" >> $GITHUB_ENV
+          
+          if [ "${ENV_INPUT}" == "prod" ]; then
+            echo "BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+            echo "PROD_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+          else
+            echo "BASE_URL=https://my.qa.marathon.health" >> $GITHUB_ENV
+            echo "QA_BASE_URL=https://my.qa.marathon.health" >> $GITHUB_ENV
+          fi
+
+      - name: 🔧 Debug Environment Setup
+        run: |
+          echo "Environment: ${{ env.ENV }}"
+          echo "Base URL: ${{ env.BASE_URL }}"
+          echo "Node Version: $(node --version)"
+          echo "NPM Version: $(npm --version)"
+          echo "Playwright Version: $(npx playwright --version)"
+
+      - name: 🧪 Run Login Tests with Invalid Credentials
+        run: |
+          npx playwright test tests/login.spec.js \
+            --project=chromium \
+            --grep "should show error message for invalid credentials.*@smoke.*@negative" \
+            --reporter=html,line \
+            --timeout=90000 \
+            --retries=2 \
+            --workers=1
+        env:
+          ENV: ${{ env.ENV }}
+          BASE_URL: ${{ env.BASE_URL }}
+          PLAYWRIGHT_HEADLESS: true
+          CI: true
+          PLAYWRIGHT_BROWSER_TIMEOUT: 60000
+          PLAYWRIGHT_TEST_TIMEOUT: 90000
+          BROWSER_CLOSE_TIMEOUT: 30000
+
+      - name: 🧪 Run All Login Tests (if no specific test specified)
+        if: "!contains(github.event.inputs.test_tags, 'invalid credentials')"
+        run: |
+          npx playwright test tests/login.spec.js \
+            --project=chromium \
+            --grep "@smoke" \
+            --reporter=html,line \
+            --timeout=90000 \
+            --retries=1 \
+            --workers=1
+        env:
+          ENV: ${{ env.ENV }}
+          BASE_URL: ${{ env.BASE_URL }}
+          PLAYWRIGHT_HEADLESS: true
+          CI: true
+
+      - name: 📊 Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: login-test-report-${{ env.ENV || 'prod' }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: 📋 Upload Screenshots on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: login-test-screenshots-${{ env.ENV || 'prod' }}
+          path: test-results/
+          retention-days: 7
+
+      - name: 📤 Upload Test Traces on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: login-test-traces-${{ env.ENV || 'prod' }}
+          path: test-results/**/*.zip
+          retention-days: 7
+
+      - name: 📧 Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Login test failed in ${{ env.ENV || 'prod' }} environment"
+          echo "::error::Check the uploaded artifacts for details"
+          echo "::error::Possible causes: Browser timeout, network issues, or environment configuration"
+
+      - name: ✅ Test Summary
+        if: always()
+        run: |
+          echo "## Login Test Results - ${{ env.ENV || 'Production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ env.ENV || 'Production' }} (${{ env.BASE_URL || 'https://my.marathon-health.com' }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Tags: ${{ github.event.inputs.test_tags || '@smoke @negative' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timeout: 90 seconds per test" >> $GITHUB_STEP_SUMMARY
+          echo "- Retries: 2 on failure" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "- Status: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Status: ❌ Failed" >> $GITHUB_STEP_SUMMARY
+            echo "- Troubleshooting: Check artifacts for screenshots and traces" >> $GITHUB_STEP_SUMMARY
+          fi
