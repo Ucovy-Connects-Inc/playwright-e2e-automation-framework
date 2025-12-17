@@ -29,7 +29,6 @@ jobs:
   login-prod-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: ${{ github.event.inputs.environment || 'production' }}
 
     steps:
       - name: 📥 Checkout Code
@@ -39,7 +38,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: 📦 Install Dependencies
         run: |
@@ -72,11 +70,14 @@ jobs:
 
       - name: 🔧 Debug Environment Setup
         run: |
-          echo "Environment: ${{ env.ENV }}"
-          echo "Base URL: ${{ env.BASE_URL }}"
+          echo "Environment: $ENV"
+          echo "Base URL: $BASE_URL"
           echo "Node Version: $(node --version)"
           echo "NPM Version: $(npm --version)"
           echo "Playwright Version: $(npx playwright --version)"
+          echo "Working Directory: $(pwd)"
+          echo "Package.json exists: $([ -f package.json ] && echo 'Yes' || echo 'No')"
+          echo "Package-lock.json exists: $([ -f package-lock.json ] && echo 'Yes' || echo 'No')"
 
       - name: 🧪 Run Login Tests with Invalid Credentials
         run: |
