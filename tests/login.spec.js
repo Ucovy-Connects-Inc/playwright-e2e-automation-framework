@@ -1,11 +1,34 @@
-import { test, expect } from '@playwright/test';
+import { expect } from "@playwright/test";
+import { baseBest as test } from "../fixtures/baseFixture.js";
+import { LoginPage } from "../pages/LoginPage/LoginPage.js";
+import { RegisterPage } from "../pages/Registration/Registration.js";
+import { AdminLoginPage } from "../pages/LoginPage/AdminPage.js";
+import { CheckpointManager } from "../utils/CheckpointManager.js";
+ 
+test.describe("Login Page Tests", () => {
+ 
+  let email = "";
+  test("should show error message for invalid credentials @smoke @negative", async ({ authenticatedPage, testData ,page}) => {
+    const { login, registration } = testData;
+    const loginPage = new LoginPage(authenticatedPage);
+    const registrationPage = new RegisterPage(authenticatedPage);
+    const checkpointManager = new CheckpointManager();
+    console.log("Opening browser by authenticatedPage fixture");
+    await authenticatedPage.goto("/");
 
-test('test', async ({ page }) => {
-  await page.goto('https://ecommerce-playground.lambdatest.io/');
-  await expect(page.getByRole('heading', { name: 'Top categories close' })).toBeVisible();
+    console.log('Opening Browser by page');
+    await page.goto("/");
 
-  await page.getByRole('link', { name: 'Home' }).click();
-  await expect(page.getByRole('heading', { name: 'Top categories close' })).toBeVisible();
-
-  await page.getByRole('link', { name: 'Blog', exact: true }).click();
+    console.log("Opening page by link");
+    await page.goto("https://my.marathon-health.com");
+ 
+    await loginPage.enterUsername(login.InvalidUsername);
+    await loginPage.enterPassword(login.InvalidPassword);
+    await loginPage.clickShowPassword();
+    checkpointManager.createCheckpoint("Validating Password Visibility After Show Password Click", await loginPage.verifyPasswordVisible(login.InvalidPassword), false, "Password should be visible after first toggle");
+    await loginPage.clickShowPassword();
+    checkpointManager.createCheckpoint("Validating Password Visibility After Hide Password Click", await loginPage.verifyPasswordVisible(login.InvalidPassword), true, "Password should be not visible after second toggle");
+    await loginPage.clickLogin();
+    checkpointManager.assertAllCheckpoints();
+  });
 });
