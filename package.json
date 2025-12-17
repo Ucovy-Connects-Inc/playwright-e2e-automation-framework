@@ -22,8 +22,21 @@
     "ci:install": "npm ci && playwright install --with-deps",
     "clean": "rm -rf test-results playwright-report allure-results allure-report || echo 'Clean completed'",
     "lint": "echo 'Linting completed - Add eslint if needed'",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "test:ai-visual": "npx playwright test --grep '@ai-visual'",
+    "test:ai-visual:update": "npx playwright test --grep '@ai-visual' --update-snapshots",
+    "test:ai-visual:chromium": "npx playwright test --grep '@ai-visual' --project=chromium-ai-visual",
+    "test:ai-visual:firefox": "npx playwright test --grep '@ai-visual' --project=firefox-ai-visual",
+    "test:ai-visual:webkit": "npx playwright test --grep '@ai-visual' --project=webkit-ai-visual",
+    "test:login:ai-visual": "npx playwright test login.spec.js --grep '@ai-visual'",
+    "test:login:ai-visual:headed": "npx playwright test login.spec.js --grep '@ai-visual' --headed",
+    "test:login:ai-visual:debug": "npx playwright test login.spec.js --grep '@ai-visual' --debug",
+    "test:ai-visual:serial": "npx playwright test --grep '@ai-visual' --workers=1",
+    "baseline:create": "npx playwright test --grep '@ai-visual' --update-snapshots",
+    "baseline:update": "npx playwright test --grep '@ai-visual' --update-snapshots",
+    "visual:report": "npx playwright show-report test-results/html-report"
   },
+  
   "keywords": [
     "playwright",
     "typescript",
