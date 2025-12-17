@@ -15,12 +15,12 @@ on:
       browser:
         description: 'Which browser to test?'
         required: true
-        default: 'chromium'
+        default: 'chromium-ai-visual'
         type: choice
         options:
-          - chromium
-          - firefox
-          - webkit
+          - chromium-ai-visual
+          - firefox-ai-visual
+          - webkit-ai-visual
           - all
 
 jobs:
@@ -53,7 +53,9 @@ jobs:
           if [ "${{ github.event.inputs.browser }}" = "all" ]; then
             npx playwright install --with-deps
           else
-            npx playwright install --with-deps ${{ github.event.inputs.browser }}
+            # Extract browser name from AI visual project name
+            BROWSER_NAME=$(echo "${{ github.event.inputs.browser }}" | sed 's/-ai-visual$//')
+            npx playwright install --with-deps $BROWSER_NAME
           fi
 
       - name: ⚙️ Configure Environment & BASE_URL
@@ -121,7 +123,7 @@ jobs:
 
       - name: 🧪 Run Tests
         run: |
-          echo "🚀 Running tests on $ENV environment with ${{ github.event.inputs.browser }} (BASE_URL=$BASE_URL)"
+          echo "🚀 Running tests on $ENV environment with ${{ github.event.inputs.browser }} (BASE_URL=$BASE_URL )"
           if [ "${{ github.event.inputs.browser }}" = "all" ]; then
             npx playwright test --reporter=list,allure-playwright,html
           else
