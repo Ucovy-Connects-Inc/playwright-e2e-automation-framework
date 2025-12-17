@@ -6,9 +6,11 @@ import { CheckpointManager } from "../utils/CheckpointManager.js";
  
 test.describe("Login Page Tests", () => {
  
-  test("should show error message for invalid credentials @smoke @negative", async ({ testData, loginPage }) => {
+  test("should show error message for invalid credentials @smoke @negative", async ({ testData, authenticatedPage }) => {
     const { login, registration } = testData;
     const checkpointManager = new CheckpointManager();
+    const loginPage = new LoginPage(authenticatedPage);
+    const registrationPage = new RegisterPage(authenticatedPage);
     
     // No need to navigate - already done by fixture with correct environment URL
     await loginPage.enterUsername(login.InvalidUsername);

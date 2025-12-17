@@ -29,6 +29,7 @@ export const baseBest = base.extend({
     
     console.log(`[BaseFixture] Using base URL: ${baseUrl}`);
     console.log(`[BaseFixture] Environment: ${process.env.ENV || 'not set'}`);
+    await page.goto(baseUrl);
     
     await use(page);
   },
@@ -46,7 +47,7 @@ export const baseBest = base.extend({
     console.log(`[LoginPage] Navigating to: ${baseUrl}`);
     
     // Navigate using the environment URL instead of hardcoded URL
-    await authenticatedPage.goto(baseUrl);
+    await page.goto(baseUrl);
     await use(loginPage);
   },
   
