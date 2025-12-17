@@ -2,17 +2,15 @@ import { expect } from "@playwright/test";
 import { baseBest as test } from "../fixtures/baseFixture.js";
 import { LoginPage } from "../pages/LoginPage/LoginPage.js";
 import { RegisterPage } from "../pages/Registration/Registration.js";
-import { AdminLoginPage } from "../pages/LoginPage/AdminPage.js";
 import { CheckpointManager } from "../utils/CheckpointManager.js";
  
 test.describe("Login Page Tests", () => {
  
-  let email = "";
-  test("should show error message for invalid credentials @smoke @negative", async ({ testData ,page}) => {
+  test("should show error message for invalid credentials @smoke @negative", async ({ testData, loginPage }) => {
     const { login, registration } = testData;
-    const loginPage = new LoginPage(page);
-    const registrationPage = new RegisterPage(page);
     const checkpointManager = new CheckpointManager();
+    
+    // No need to navigate - already done by fixture with correct environment URL
     await loginPage.enterUsername(login.InvalidUsername);
     await loginPage.enterPassword(login.InvalidPassword); 
     await loginPage.clickShowPassword();

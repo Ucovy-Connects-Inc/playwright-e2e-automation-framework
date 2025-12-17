@@ -17,16 +17,36 @@ export const baseBest = base.extend({
     await context.close();
   },
   
-  // Clean page without automatic navigation
+  // Clean page without automatic navigation - respects environment
   authenticatedPage: async ({ authenticatedContext }, use) => {
     const page = await authenticatedContext.newPage();
+    
+    // Get base URL from environment variables with fallback
+    const baseUrl = process.env.BASE_URL || 
+                   process.env.PROD_BASE_URL || 
+                   process.env.QA_BASE_URL || 
+                   "https://my.marathon-health.com";
+    
+    console.log(`[BaseFixture] Using base URL: ${baseUrl}`);
+    console.log(`[BaseFixture] Environment: ${process.env.ENV || 'not set'}`);
+    
     await use(page);
   },
   
-  // Separate fixture for pre-navigated login page
+  // Pre-navigated login page using environment URL
   loginPage: async ({ authenticatedPage }, use) => {
     const loginPage = new LoginPage(authenticatedPage);
-    await loginPage.navigate();
+    
+    // Use environment-specific URL for navigation
+    const baseUrl = process.env.BASE_URL || 
+                   process.env.PROD_BASE_URL || 
+                   process.env.QA_BASE_URL || 
+                   "https://my.marathon-health.com";
+    
+    console.log(`[LoginPage] Navigating to: ${baseUrl}`);
+    
+    // Navigate using the environment URL instead of hardcoded URL
+    await authenticatedPage.goto(baseUrl);
     await use(loginPage);
   },
   
