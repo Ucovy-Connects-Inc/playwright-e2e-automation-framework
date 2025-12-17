@@ -17,11 +17,17 @@ export const baseBest = base.extend({
     await context.close();
   },
   
+  // Clean page without automatic navigation
   authenticatedPage: async ({ authenticatedContext }, use) => {
     const page = await authenticatedContext.newPage();
-    const loginPage = new LoginPage(page);
-    await loginPage.navigate();
     await use(page);
+  },
+  
+  // Separate fixture for pre-navigated login page
+  loginPage: async ({ authenticatedPage }, use) => {
+    const loginPage = new LoginPage(authenticatedPage);
+    await loginPage.navigate();
+    await use(loginPage);
   },
   
   testData: async ({ }, use, testInfo) => {
