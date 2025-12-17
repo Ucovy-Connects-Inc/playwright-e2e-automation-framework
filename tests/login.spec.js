@@ -1,22 +1,20 @@
-// @ts-nocheck
 import { expect } from "@playwright/test";
 import { baseBest as test } from "../fixtures/baseFixture.js";
 import { LoginPage } from "../pages/LoginPage/LoginPage.js";
 import { RegisterPage } from "../pages/Registration/Registration.js";
-import { AdminLoginPage } from "../pages/LoginPage/AdminPage.js";
 import { CheckpointManager } from "../utils/CheckpointManager.js";
  
 test.describe("Login Page Tests", () => {
  
-  let email = "";
-  test("should show error message for invalid credentials @smoke @negative", async ({ authenticatedPage, testData }) => {
+  test("should show error message for invalid credentials @smoke @Loginnegative", async ({ testData, authenticatedPage }) => {
     const { login, registration } = testData;
+    const checkpointManager = new CheckpointManager();
     const loginPage = new LoginPage(authenticatedPage);
     const registrationPage = new RegisterPage(authenticatedPage);
-    const checkpointManager = new CheckpointManager();
- 
+    
+    // No need to navigate - already done by fixture with correct environment URL
     await loginPage.enterUsername(login.InvalidUsername);
-    await loginPage.enterPassword(login.InvalidPassword);
+    await loginPage.enterPassword(login.InvalidPassword); 
     await loginPage.clickShowPassword();
     checkpointManager.createCheckpoint("Validating Password Visibility After Show Password Click", await loginPage.verifyPasswordVisible(login.InvalidPassword), false, "Password should be visible after first toggle");
     await loginPage.clickShowPassword();
