@@ -1,0 +1,110 @@
+name: Login Tests - Production Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_tags:
+        description: 'Test tags to run (e.g., @smoke, @negative, @positive)'
+        required: false
+        default: '@smoke @negative'
+        type: string
+  schedule:
+    - cron: '0 8 * * 1-5'  # Runs at 8 AM UTC, Monday to Friday
+  push:
+    branches:
+      - main
+    paths:
+      - 'tests/login.spec.js'
+      - 'pages/LoginPage/**'
+
+jobs:
+  login-prod-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "📦 Using npm ci (package-lock.json found)"
+            npm ci
+          else
+            echo "📦 Using npm install (no package-lock.json)"
+            npm install
+          fi
+
+      - name: 🎭 Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: ⚙️ Setup Production Environment
+        run: |
+          echo "ENV=prod" >> $GITHUB_ENV
+          echo "PROD_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+          echo "HEADLESS=true" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
+
+      - name: 🧪 Run Login Tests with Invalid Credentials
+        run: |
+          npx playwright test tests/login.spec.js \
+            --project=chromium \
+            --grep "should show error message for invalid credentials.*@smoke.*@negative" \
+            --reporter=html,line
+        env:
+          ENV: prod
+          BASE_URL: ${{ env.PROD_BASE_URL }}
+          PLAYWRIGHT_HEADLESS: 'true'
+
+      - name: 📊 Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: login-test-report-prod
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: 📋 Upload Screenshots on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: login-test-screenshots-prod
+          path: test-results/
+          retention-days: 7
+
+      - name: 📤 Upload Test Traces on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: login-test-traces-prod
+          path: test-results/**/*.zip
+          retention-days: 7
+
+      - name: 📧 Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Login test failed in production environment"
+          echo "::error::Check the uploaded artifacts for details"
+
+      - name: ✅ Test Summary
+        if: always()
+        run: |
+          echo "## Login Test Results - Production" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: Production (https://my.marathon-health.com)" >> $GITHUB_STEP_SUMMARY
+          echo "- Test: Invalid credentials validation" >> $GITHUB_STEP_SUMMARY
+          echo "- Tags: @smoke @negative" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "- Status: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Status: ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
