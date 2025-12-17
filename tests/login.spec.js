@@ -13,14 +13,6 @@ test.describe("Login Page Tests", () => {
     const loginPage = new LoginPage(authenticatedPage);
     const registrationPage = new RegisterPage(authenticatedPage);
     const checkpointManager = new CheckpointManager();
-    console.log("Opening browser by authenticatedPage fixture");
-    await authenticatedPage.goto("/");
-
-    console.log('Opening Browser by page');
-    await page.goto("/");
-
-    console.log("Opening page by link");
-    await page.goto("https://my.marathon-health.com");
  
     await loginPage.enterUsername(login.InvalidUsername);
     await loginPage.enterPassword(login.InvalidPassword);
