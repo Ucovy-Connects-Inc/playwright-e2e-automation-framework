@@ -101,7 +101,7 @@ jobs:
         if: "!contains(github.event.inputs.test_tags, 'invalid credentials')"
         run: |
           npx playwright test tests/login.spec.js \
-            --project=chromium \
+            --project=chromium-ai-visual \
             --grep "@smoke" \
             --reporter=html,line \
             --timeout=90000 \
