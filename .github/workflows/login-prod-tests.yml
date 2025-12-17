@@ -81,8 +81,9 @@ jobs:
 
       - name: 🧪 Run Login Tests with Invalid Credentials
         run: |
-          npx playwright test tests/login.spec.js \
+          npx playwright test \
             --project=chromium-ai-visual \
+            --grep="${TEST_TAGS}" \
             --reporter=html,line \
             --timeout=90000 \
             --retries=2 \
@@ -99,11 +100,12 @@ jobs:
       - name: 🧪 Run All Login Tests (if no specific test specified)
         if: "!contains(github.event.inputs.test_tags, 'invalid credentials')"
         run: |
-          npx playwright test tests/login.spec.js \
+          npx playwright test tests \
             --project=chromium-ai-visual \
+            --grep="${TEST_TAGS}" \
             --reporter=html,line \
             --timeout=90000 \
-            --retries=1 \
+            --retries=2 \
             --workers=1
         env:
           ENV: ${{ env.ENV }}

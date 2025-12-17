@@ -24,8 +24,8 @@ export const baseBest = base.extend({
     // Get base URL from environment variables with fallback
     const baseUrl = process.env.BASE_URL || 
                    process.env.PROD_BASE_URL || 
-                   process.env.QA_BASE_URL || 
-                   "https://my.marathon-health.com";
+                   process.env.QA_BASE_URL  
+                  ;
     
     console.log(`[BaseFixture] Using base URL: ${baseUrl}`);
     console.log(`[BaseFixture] Environment: ${process.env.ENV || 'not set'}`);
