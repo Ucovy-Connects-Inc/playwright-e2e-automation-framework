@@ -13,7 +13,7 @@ test.describe("Login Page Tests", () => {
     const loginPage = new LoginPage(page);
     const registrationPage = new RegisterPage(page);
     const checkpointManager = new CheckpointManager();
-    await loginPage.navigate();
+    await page.goto("/");
     await loginPage.enterUsername(login.InvalidUsername);
     await loginPage.enterPassword(login.InvalidPassword); 
     await loginPage.clickShowPassword();
