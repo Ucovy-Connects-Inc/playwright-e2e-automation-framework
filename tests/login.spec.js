@@ -8,14 +8,14 @@ import { CheckpointManager } from "../utils/CheckpointManager.js";
 test.describe("Login Page Tests", () => {
  
   let email = "";
-  test("should show error message for invalid credentials @smoke @negative", async ({ testData ,authenticatedPage}) => {
+  test("should show error message for invalid credentials @smoke @negative", async ({ testData ,page}) => {
     const { login, registration } = testData;
-    const loginPage = new LoginPage(authenticatedPage);
-    const registrationPage = new RegisterPage(authenticatedPage);
+    const loginPage = new LoginPage(page);
+    const registrationPage = new RegisterPage(page);
     const checkpointManager = new CheckpointManager();
- 
+    await loginPage.navigate();
     await loginPage.enterUsername(login.InvalidUsername);
-    await loginPage.enterPassword(login.InvalidPassword);
+    await loginPage.enterPassword(login.InvalidPassword); 
     await loginPage.clickShowPassword();
     checkpointManager.createCheckpoint("Validating Password Visibility After Show Password Click", await loginPage.verifyPasswordVisible(login.InvalidPassword), false, "Password should be visible after first toggle");
     await loginPage.clickShowPassword();
