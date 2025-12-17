@@ -8,12 +8,11 @@ import { CheckpointManager } from "../utils/CheckpointManager.js";
 test.describe("Login Page Tests", () => {
  
   let email = "";
-  test("should show error message for invalid credentials @smoke @negative", async ({ testData ,page}) => {
+  test("should show error message for invalid credentials @smoke @negative", async ({ testData ,authenticatedPage}) => {
     const { login, registration } = testData;
-    const loginPage = new LoginPage(page);
-    const registrationPage = new RegisterPage(page);
+    const loginPage = new LoginPage(authenticatedPage);
+    const registrationPage = new RegisterPage(authenticatedPage);
     const checkpointManager = new CheckpointManager();
-    await page.goto("/");
  
     await loginPage.enterUsername(login.InvalidUsername);
     await loginPage.enterPassword(login.InvalidPassword);
