@@ -81,6 +81,8 @@ jobs:
 
       - name: 🧪 Run Login Tests with Invalid Credentials
         run: |
+          TEST_TAGS="${{ github.event.inputs.test_tags || '@smoke @negative' }}"
+          echo "Running tests with tags: ${TEST_TAGS}"
           npx playwright test \
             --project=chromium-ai-visual \
             --grep="${TEST_TAGS}" \
@@ -88,18 +90,12 @@ jobs:
             --timeout=90000 \
             --retries=2 \
             --workers=1
-        env:
-          ENV: ${{ env.ENV }}
-          BASE_URL: ${{ env.BASE_URL }}
-          PLAYWRIGHT_HEADLESS: true
-          CI: true
-          PLAYWRIGHT_BROWSER_TIMEOUT: 60000
-          PLAYWRIGHT_TEST_TIMEOUT: 90000
-          BROWSER_CLOSE_TIMEOUT: 30000
 
       - name: 🧪 Run All Login Tests (if no specific test specified)
         if: "!contains(github.event.inputs.test_tags, 'invalid credentials')"
         run: |
+          TEST_TAGS="${{ github.event.inputs.test_tags || '@smoke @negative' }}"
+          echo "Running all tests with tags: ${TEST_TAGS}"
           npx playwright test tests \
             --project=chromium-ai-visual \
             --grep="${TEST_TAGS}" \
