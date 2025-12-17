@@ -1,4 +1,4 @@
-name: Login Tests - Production Environment
+name: Github Actions For Testing 
 
 on:
   workflow_dispatch:
