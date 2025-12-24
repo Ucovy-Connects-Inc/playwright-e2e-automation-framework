@@ -3,9 +3,9 @@ import { LoginPage } from "../pages/LoginPage/LoginPage.js";
 import { RegisterPage } from "../pages/Registration/Registration.js";
 import { AdminLoginPage } from "../pages/LoginPage/AdminPage.js";
 import { CheckpointManager } from "../utils/CheckpointManager.js";
- 
+
 test.describe(" Registration Page Tests", () => {
- 
+
   let email = "";
   test("should show error message for invalid credentials @smoke @registration", async ({ authenticatedPage, testData }) => {
     const { login, registration } = testData;
@@ -28,7 +28,7 @@ test.describe(" Registration Page Tests", () => {
       "Test Employer Inc."
     );
 
-    
+
 
   });
 });

@@ -8,7 +8,7 @@ process.env.ENV = ENV;
 
 // Get base URL from environment variables
 const getBaseURL = () => {
-    return process.env[`${ENV.toUpperCase()}_BASE_URL`];
+  return process.env[`${ENV.toUpperCase()}_BASE_URL`];
 };
 // Environment-driven overrides from .env file
 const retries = Number(process.env.RETRIES) || 0;
@@ -16,16 +16,16 @@ const workers = Number(process.env.WORKERS) || undefined;
 const headless = process.env.HEADLESS === 'true' || !!process.env.CI;
 const actionTimeout = Number(process.env.ACTION_TIMEOUT) || 30000;
 const testTimeout = Number(process.env.TEST_TIMEOUT) || 60000;
- 
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false, // For serial AI visual tests
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 1 : 2, // Reduced for visual consistency
-  
+
   reporter: [
-    ['html', { 
+    ['html', {
       outputFolder: 'test-results/html-report',
       open: 'never'
     }],
@@ -37,7 +37,7 @@ export default defineConfig({
   // 🎯 AI Visual Testing Global Configuration
   expect: {
     // Global visual comparison settings
-    toHaveScreenshot: { 
+    toHaveScreenshot: {
       threshold: 0.1,
       maxDiffPixels: 1000,
       animations: 'disabled',
@@ -68,7 +68,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    
+
     // 🎯 AI Visual Testing Browser Configuration
     launchOptions: {
       args: [
@@ -83,10 +83,10 @@ export default defineConfig({
         '--force-color-profile=srgb', // Consistent color rendering
       ]
     },
-    
+
     // Consistent viewport for visual testing
     viewport: { width: 1280, height: 720 },
-    
+
     // Disable animations globally for consistent screenshots
     bypassCSP: true
   },
@@ -94,7 +94,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-ai-visual',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1280, height: 720 },
         // Chromium-specific AI visual settings
@@ -108,10 +108,10 @@ export default defineConfig({
         }
       },
     },
-    
+
     {
-      name: 'firefox-ai-visual', 
-      use: { 
+      name: 'firefox-ai-visual',
+      use: {
         ...devices['Desktop Firefox'],
         viewport: { width: 1280, height: 720 },
         // Firefox gets slightly different thresholds
@@ -126,7 +126,7 @@ export default defineConfig({
 
     {
       name: 'webkit-ai-visual',
-      use: { 
+      use: {
         ...devices['Desktop Safari'],
         viewport: { width: 1280, height: 720 }
       },
@@ -135,7 +135,7 @@ export default defineConfig({
 
   // Global test setup for AI visual testing
   // globalSetup: require.resolve('./global-setup.js'),
-  
+
   // Output directories for AI visual artifacts
   outputDir: 'test-results/artifacts',
 });

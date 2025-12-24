@@ -21,14 +21,14 @@ export class RegisterPage {
     this.relationOptionChild = page.getByText('Child');
     this.registerAsChildButton = page.getByRole('button', { name: 'Register as Child' });
     this.employeeOption = page.getByText('Employee', { exact: true });
- 
+
     this.submitButton = page.locator('//button[@type="button" and text()="submit"]');
   }
- 
+
   async clickOnRegisterAccount() {
     await this.registerLink.click();
   }
- 
+
   async fillRegistrationForm(firstName, lastName, email, ssn, dob, street1, street2, city, zip, mobile, home, employer) {
     await this.firstName.fill(firstName);
     await this.lastName.fill(lastName);
@@ -49,14 +49,14 @@ export class RegisterPage {
     await this.employeeOption.click();
     await CommonUtils.waitForVisible(this.page, '//input[@id="proposed_employer_name"]');
     await this.page.locator('//input[@id="proposed_employer_name"]').fill(employer);
- 
+
     console.log("Filled registration form with:", email);
   }
- 
+
   async submitRegistration() {
     //await this.waitForTimeout(2000);
- 
+
     await this.submitButton.click();
- 
+
   }
 }

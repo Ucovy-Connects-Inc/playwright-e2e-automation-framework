@@ -2,9 +2,7 @@ import { CommonUtils } from "../utils/CommonUtils.js";
 
 export const data = {
   login: {
-    InvalidUsername: "hjdhsjfhksjfiwsfnklsfj",
-    InvalidPassword: "ghsg12345",
-    ValidUsername: "munaztest",
+    ValidUsername: "allaccess",
     ValidPassword: "Default1"
   },
 

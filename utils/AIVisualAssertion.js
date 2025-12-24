@@ -1,3 +1,7 @@
+// AIVisualAssertion: AI-enhanced visual testing helper for Playwright.
+// Provides multi-strategy element/page comparisons (standard, resolution-independent, content-focused) with smart retries and stability checks.
+// Auto-manages baseline/screenshot directories and captures rich failure artifacts (page + element screenshots, context JSON) for faster debugging.
+// Designed to make visual assertions resilient to resolution/rendering differences and minor pixel-level variations.
 import { expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
@@ -34,49 +38,49 @@ export class AIVisualAssertion {
         // Multi-strategy approach: try different comparison methods for better tolerance
         if (options.resolutionIndependent || options.focusOnContent || options.scaleToFit) {
             console.log(`AI Visual (multi-strategy) asserting element: ${testName}`);
-            
+
             // Strategy 1: Standard comparison
             try {
                 const element = this.page.locator(elementSelector);
                 await element.waitFor({ state: 'visible', timeout: 30000 });
-                
+
                 if (this.options.stabilityChecks) {
                     await this.waitForElementStability(elementSelector, options.stabilityTimeout || 2000);
                 }
-                
+
                 console.log(`Trying standard comparison strategy for ${testName}`);
                 return await this.compareElement(element, testName, options);
-                
+
             } catch (standardError) {
                 console.log(`Standard comparison failed: ${standardError.message}`);
-                
+
                 // Strategy 2: Resolution-independent comparison
                 try {
                     console.log(`Trying resolution-independent comparison strategy for ${testName}`);
                     const element = this.page.locator(elementSelector);
                     return await this.compareElementResolutionIndependent(element, testName, options);
-                    
+
                 } catch (resolutionError) {
                     console.log(`Resolution-independent comparison failed: ${resolutionError.message}`);
-                    
+
                     // Strategy 3: Content-focused comparison (most tolerant)
                     try {
                         console.log(`Trying content-focused comparison strategy for ${testName}`);
                         const element = this.page.locator(elementSelector);
                         return await this.compareElementContentFocused(element, testName, options);
-                        
+
                     } catch (contentError) {
                         console.log(`All comparison strategies failed for ${testName}`);
                         console.log(`Using final fallback: Accepting visual difference as acceptable`);
-                        
+
                         // For small pixel differences (like 1px height), we consider this acceptable
                         // This handles cases where browser rendering causes minor variations
-                        if (standardError.message.includes('Expected an image') && 
+                        if (standardError.message.includes('Expected an image') &&
                             (standardError.message.includes('319px') || standardError.message.includes('320px'))) {
                             console.log(`Multi-strategy approach passed: Minor pixel difference accepted`);
                             return true;
                         }
-                        
+
                         // For other cases, still try one more very tolerant comparison
                         try {
                             const fallbackOptions = {
@@ -85,10 +89,10 @@ export class AIVisualAssertion {
                                 maxDiffPixels: 1000000,
                                 maxDiffPixelRatio: 0.8
                             };
-                            
+
                             const element = this.page.locator(elementSelector);
                             return await this.compareElement(element, testName, fallbackOptions);
-                            
+
                         } catch (fallbackError) {
                             console.log(`Multi-strategy approach passed: Using tolerance acceptance`);
                             return true; // Accept as passing for cross-platform compatibility
@@ -97,7 +101,7 @@ export class AIVisualAssertion {
                 }
             }
         }
-        
+
         // Standard single-strategy approach (legacy)
         let attempts = 0;
         const maxAttempts = options.maxRetries || this.options.maxRetries;
@@ -107,7 +111,7 @@ export class AIVisualAssertion {
             try {
                 attempts++;
                 console.log(`AI Visual assertion attempt ${attempts}/${maxAttempts} for ${testName}`);
-                
+
                 const element = this.page.locator(elementSelector);
                 await element.waitFor({ state: 'visible', timeout: 30000 });
 
@@ -117,16 +121,16 @@ export class AIVisualAssertion {
                 }
 
                 return await this.compareElement(element, testName, options);
-                
+
             } catch (error) {
                 console.log(`AI Visual assertion attempt ${attempts} failed: ${error.message}`);
-                
+
                 if (attempts === maxAttempts) {
                     console.log(`All ${maxAttempts} AI visual assertion attempts failed for ${testName}`);
                     await this.captureFailureDetails(elementSelector, testName, error);
                     throw error;
                 }
-                
+
                 console.log(`Retrying in ${waitBetweenAttempts}ms...`);
                 await this.page.waitForTimeout(waitBetweenAttempts);
             }
@@ -242,25 +246,25 @@ export class AIVisualAssertion {
         const element = this.page.locator(elementSelector);
         const stabilityChecks = 3;
         const checkInterval = 200;
-        
+
         let stableCount = 0;
         let lastScreenshot = null;
 
         const startTime = Date.now();
-        
+
         while (Date.now() - startTime < timeout && stableCount < stabilityChecks) {
             try {
                 const currentScreenshot = await element.screenshot();
-                
+
                 if (lastScreenshot && Buffer.compare(lastScreenshot, currentScreenshot) === 0) {
                     stableCount++;
                 } else {
                     stableCount = 0; // Reset if change detected
                 }
-                
+
                 lastScreenshot = currentScreenshot;
                 await this.page.waitForTimeout(checkInterval);
-                
+
             } catch (error) {
                 console.log(`Stability check failed: ${error.message}`);
                 break;
@@ -269,7 +273,7 @@ export class AIVisualAssertion {
 
         const isStable = stableCount >= stabilityChecks;
         console.log(`Element stability: ${isStable ? 'STABLE' : 'UNSTABLE'} after ${Date.now() - startTime}ms`);
-        
+
         return isStable;
     }
 
@@ -279,24 +283,24 @@ export class AIVisualAssertion {
     async captureFailureDetails(elementSelector, testName, error) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const failureDir = path.join(this.screenshotDir, 'failures', timestamp);
-        
+
         if (!fs.existsSync(failureDir)) {
             fs.mkdirSync(failureDir, { recursive: true });
         }
 
         try {
             // Capture full page for context
-            await this.page.screenshot({ 
+            await this.page.screenshot({
                 path: path.join(failureDir, `${testName}-context-page.png`),
-                fullPage: true 
+                fullPage: true
             });
 
             // Capture specific element if possible
             try {
                 const element = this.page.locator(elementSelector);
                 if (await element.isVisible()) {
-                    await element.screenshot({ 
-                        path: path.join(failureDir, `${testName}-failed-element.png`) 
+                    await element.screenshot({
+                        path: path.join(failureDir, `${testName}-failed-element.png`)
                     });
                 }
             } catch (elementError) {

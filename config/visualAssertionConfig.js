@@ -35,7 +35,7 @@ export const VisualAssertionConfig = {
                 'success-message': '.success-message, .alert-success, [data-testid="success-message"], .success, .valid-feedback'
             }
         },
-        
+
         appointment: {
             threshold: 0.1,
             maxDiffPixels: 1200,
@@ -59,15 +59,15 @@ export const VisualAssertionConfig = {
 
     // Browser-specific adjustments
     browserConfigs: {
-        chromium: { 
+        chromium: {
             threshold: 0.08,
             maxDiffPixels: 800
         },
-        firefox: { 
+        firefox: {
             threshold: 0.12, // More lenient for Firefox rendering
             maxDiffPixels: 1200
         },
-        webkit: { 
+        webkit: {
             threshold: 0.15, // More lenient for Safari
             maxDiffPixels: 1500
         }
@@ -75,15 +75,15 @@ export const VisualAssertionConfig = {
 
     // Environment-specific settings
     environmentConfigs: {
-        development: { 
+        development: {
             threshold: 0.2,
             maxRetries: 2
         },
-        staging: { 
+        staging: {
             threshold: 0.1,
             maxRetries: 3
         },
-        production: { 
+        production: {
             threshold: 0.05,
             maxRetries: 5
         },

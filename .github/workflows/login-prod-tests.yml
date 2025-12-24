@@ -3,11 +3,11 @@ name: Github Actions For Testing
 on:
   workflow_dispatch:
     inputs:
-      test_tags:
-        description: 'Test tags to run (e.g., @smoke, @negative, @positive)'
-        required: false
-        default: '@smoke @negative'
-        type: string
+      # test_tags:
+      #   description: 'Test tags to run (e.g., @smoke, @negative, @positive)'
+      #   required: false
+      #   default: '@smoke @negative'
+      #   type: string
       environment:
         description: 'Environment to test (qa, prod)'
         required: false
@@ -21,9 +21,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'tests/login.spec.js'
-      - 'pages/LoginPage/**'
+      - feature/**
 
 jobs:
   login-prod-tests:
@@ -54,7 +52,7 @@ jobs:
 
       - name: ⚙️ Setup Environment Variables
         run: |
-          ENV_INPUT="${{ github.event.inputs.environment || 'prod' }}"
+          ENV_INPUT="${{ github.event.inputs.environment || 'qa' }}"
           echo "ENV=${ENV_INPUT}" >> $GITHUB_ENV
           echo "CI=true" >> $GITHUB_ENV
           echo "HEADLESS=true" >> $GITHUB_ENV
@@ -81,24 +79,20 @@ jobs:
 
       - name: 🧪 Run Login Tests with Invalid Credentials
         run: |
-          TEST_TAGS="${{ github.event.inputs.test_tags || '@smoke @negative' }}"
-          echo "Running tests with tags: ${TEST_TAGS}"
           npx playwright test \
             --project=chromium-ai-visual \
-            --grep="${TEST_TAGS}" \
+            --grep="negative" \
             --reporter=html,line \
             --timeout=90000 \
-            --retries=2 \
+            --retries=1 \
             --workers=1
 
       - name: 🧪 Run All Login Tests (if no specific test specified)
         if: "!contains(github.event.inputs.test_tags, 'invalid credentials')"
         run: |
-          TEST_TAGS="${{ github.event.inputs.test_tags || '@smoke @negative' }}"
-          echo "Running all tests with tags: ${TEST_TAGS}"
           npx playwright test tests \
             --project=chromium-ai-visual \
-            --grep="${TEST_TAGS}" \
+            --grep="negative" \
             --reporter=html,line \
             --timeout=90000 \
             --retries=2 \

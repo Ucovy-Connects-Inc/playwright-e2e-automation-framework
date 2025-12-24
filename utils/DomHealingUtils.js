@@ -1,3 +1,6 @@
+// Overall: DOM-healing utilities used to capture DOM snapshots, derive alternative selectors (from HTML or live page),
+// and perform resilient interactions (click/fill/visibility) when original selectors fail — makes tests tolerant to UI changes.
+// Used by page objects across the test suite to recover from selector regressions and reduce test flakiness.
 import { test } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
@@ -78,21 +81,21 @@ export function findAlternativeSelector(domHtml, hint) {
             if (good) return `${tag}.${classes.join('.')}`;
         }
 
-            // 8) inner text contains hint (but skip overly large or non-text nodes like html/head/style)
-            const skipTags = ['html','head','style','script','meta','link'];
-            if (!skipTags.includes(tag.toLowerCase()) && inner) {
-                // strip any child tags to get plain text
-                const plain = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                if (plain.toLowerCase().includes(hintLower)) {
-                    // take a short, safe snippet and escape double quotes
-                    let snippet = plain.split('\n').map(s=>s.trim()).filter(Boolean).join(' ');
-                    snippet = snippet.length > 80 ? snippet.slice(0, 80) : snippet;
-                    // remove problematic characters that can break CSS parsing
-                    snippet = snippet.replace(/["<>]/g, '');
-                    const safe = snippet.replace(/\"/g, '\\"');
-                    return `${tag}:has-text("${safe}")`;
-                }
+        // 8) inner text contains hint (but skip overly large or non-text nodes like html/head/style)
+        const skipTags = ['html', 'head', 'style', 'script', 'meta', 'link'];
+        if (!skipTags.includes(tag.toLowerCase()) && inner) {
+            // strip any child tags to get plain text
+            const plain = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (plain.toLowerCase().includes(hintLower)) {
+                // take a short, safe snippet and escape double quotes
+                let snippet = plain.split('\n').map(s => s.trim()).filter(Boolean).join(' ');
+                snippet = snippet.length > 80 ? snippet.slice(0, 80) : snippet;
+                // remove problematic characters that can break CSS parsing
+                snippet = snippet.replace(/["<>]/g, '');
+                const safe = snippet.replace(/\"/g, '\\"');
+                return `${tag}:has-text("${safe}")`;
             }
+        }
     }
 
     // if nothing matched
@@ -118,7 +121,7 @@ export async function findAlternativeSelectorInPage(page, hint) {
         const hintLower = h.toLowerCase();
         function score(el) {
             let s = 0;
-            const attrs = ['id','name','placeholder','aria-label','title','alt','value'];
+            const attrs = ['id', 'name', 'placeholder', 'aria-label', 'title', 'alt', 'value'];
             for (const a of attrs) {
                 const v = el.getAttribute && el.getAttribute(a);
                 if (v) {
@@ -127,7 +130,7 @@ export async function findAlternativeSelectorInPage(page, hint) {
                     else if (vl.includes(hintLower)) s += 10;
                 }
             }
-            const text = (el.textContent||'').trim().toLowerCase();
+            const text = (el.textContent || '').trim().toLowerCase();
             if (text === hintLower) s += 15;
             else if (text.includes(hintLower)) s += 7;
             return s;
@@ -144,8 +147,8 @@ export async function findAlternativeSelectorInPage(page, hint) {
         const cls = best.className && String(best.className).trim();
         if (cls) return best.tagName.toLowerCase() + '.' + cls.split(/\s+/).join('.');
         // fallback to text
-        const t = (best.textContent||'').trim().split('\n').map(s=>s.trim()).filter(Boolean)[0] || '';
-        if (t) return best.tagName.toLowerCase() + `:has-text("${t.slice(0,60)}")`;
+        const t = (best.textContent || '').trim().split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+        if (t) return best.tagName.toLowerCase() + `:has-text("${t.slice(0, 60)}")`;
         return null;
     }, hint);
     return selector;
@@ -161,7 +164,7 @@ export async function findAlternativeSelectorInPage(page, hint) {
 export async function healingClick(page, originalSelector, hintText, snapshotFileName = 'healing-click') {
     const locator = page.locator(originalSelector);
     const count = await locator.count();
-    
+
     if (count > 0) {
         // Original selector exists — use it
         await locator.click();
@@ -169,20 +172,20 @@ export async function healingClick(page, originalSelector, hintText, snapshotFil
     } else {
         // Original selector not found — attempt healing
         console.log(`[HealingClick] Original selector not found: ${originalSelector}, attempting to heal...`);
-        
+
         const snapshotPath = await captureDomSnapshot(page, snapshotFileName);
-        await page.waitForLoadState('networkidle').catch(() => {});
-        
+        await page.waitForLoadState('networkidle').catch(() => { });
+
         const domHtml = fs.readFileSync(snapshotPath, 'utf8');
         console.log(`[HealingClick] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
-        
+
         let healedSelector = findAlternativeSelector(domHtml, hintText);
         if (!healedSelector) {
             console.log('[HealingClick] No selector found in snapshot; attempting in-page heuristic...');
             healedSelector = await findAlternativeSelectorInPage(page, hintText);
             console.log(`[HealingClick] In-page heuristic returned: ${healedSelector}`);
         }
-        
+
         if (healedSelector) {
             console.log(`[HealingClick] Found healed selector: ${healedSelector}`);
             await page.locator(healedSelector).click();
@@ -203,7 +206,7 @@ export async function healingClick(page, originalSelector, hintText, snapshotFil
 export async function healingFill(page, originalSelector, text, hintText, snapshotFileName = 'healing-fill') {
     const locator = page.locator(originalSelector);
     const count = await locator.count();
-    
+
     if (count > 0) {
         // Original selector exists — use it
         await locator.fill(text);
@@ -211,20 +214,20 @@ export async function healingFill(page, originalSelector, text, hintText, snapsh
     } else {
         // Original selector not found — attempt healing
         console.log(`[HealingFill] Original selector not found: ${originalSelector}, attempting to heal...`);
-        
+
         const snapshotPath = await captureDomSnapshot(page, snapshotFileName);
-        await page.waitForLoadState('networkidle').catch(() => {});
-        
+        await page.waitForLoadState('networkidle').catch(() => { });
+
         const domHtml = fs.readFileSync(snapshotPath, 'utf8');
         console.log(`[HealingFill] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
-        
+
         let healedSelector = findAlternativeSelector(domHtml, hintText);
         if (!healedSelector) {
             console.log('[HealingFill] No selector found in snapshot; attempting in-page heuristic...');
             healedSelector = await findAlternativeSelectorInPage(page, hintText);
             console.log(`[HealingFill] In-page heuristic returned: ${healedSelector}`);
         }
-        
+
         if (healedSelector) {
             console.log(`[HealingFill] Found healed selector: ${healedSelector}`);
             await page.locator(healedSelector).fill(text);
@@ -258,7 +261,7 @@ export async function healingIsVisible(page, originalSelector, hintText, snapsho
     } else {
         // Original selector not found, attempt healing
         console.log(`[HealingVisible] Original selector not found: ${originalSelector}, attempting to heal...`);
-        
+
         // Save DOM snapshot for analysis
         const domHtml = await page.content();
         const snapshotPath = path.resolve(process.cwd(), `snapshots/${snapshotFileName}.html`);
@@ -267,7 +270,7 @@ export async function healingIsVisible(page, originalSelector, hintText, snapsho
         }
         fs.writeFileSync(snapshotPath, domHtml);
         console.log(`[HealingVisible] Saved DOM snapshot: ${snapshotPath} (size: ${domHtml.length} bytes)`);
-        
+
         // Try to find healed selector
         let healedSelector = findAlternativeSelector(domHtml, hintText);
         if (!healedSelector) {
@@ -275,7 +278,7 @@ export async function healingIsVisible(page, originalSelector, hintText, snapsho
             healedSelector = await findAlternativeSelectorInPage(page, hintText);
             console.log(`[HealingVisible] In-page heuristic returned: ${healedSelector}`);
         }
-        
+
         if (healedSelector) {
             console.log(`[HealingVisible] Found healed selector: ${healedSelector}`);
             return await page.locator(healedSelector).isVisible();

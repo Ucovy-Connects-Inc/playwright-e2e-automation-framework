@@ -1,3 +1,13 @@
+// AIVisualManager: high-level orchestration for AI-driven visual assertions.
+// - Wraps AIVisualAssertion to provide test-name sanitization, short test-id generation, and environment-aware configuration.
+// - Resolves selectors (config keys, direct selectors, or sensible fallbacks) and offers multi-strategy visual checks:
+//   standard, resolution-independent, and content-focused comparisons with retries and stability checks.
+// - Provides helpers to assert single elements, custom selectors, full pages, multiple elements, and auto-detection of important elements.
+// Public surface: ~18 helper methods (sanitizeTestName, generateShortTestId, simpleHash, extractTestCategory, buildConfiguration,
+// resolveSelector, isValidSelector, assertElement, assertCustomElement, assertPage, assertMultipleElements,
+// detectAndAssertElements, isImportantElement, buildSelectorForElement, assertElementResolutionIndependent,
+// assertElementContentFocused, assertElementMultiStrategy, generateFallbackSelector).
+// Intended use: import into tests to perform robust, resolution-tolerant visual checks and collect concise pass/fail results.
 import { AIVisualAssertion } from './AIVisualAssertion.js';
 import { VisualAssertionConfig } from '../config/visualAssertionConfig.js';
 
@@ -28,7 +38,7 @@ export class AIVisualManager {
         const baseTestName = this.testName.substring(0, 20); // Max 20 chars from test name
         const elementName = elementKey.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10); // Max 10 chars from element
         const hash = this.simpleHash(`${this.testName}-${elementKey}`).toString().substring(0, 6); // 6 char hash
-        
+
         return `${baseTestName}-${elementName}-${hash}`;
     }
 
@@ -51,7 +61,7 @@ export class AIVisualManager {
     extractTestCategory(testName) {
         const name = testName.toLowerCase();
 
-        if (name.includes('login') || name.includes('authentication') || name.includes('signin') || 
+        if (name.includes('login') || name.includes('authentication') || name.includes('signin') ||
             name.includes('credentials') || name.includes('username') || name.includes('password')) return 'login';
         if (name.includes('appointment') || name.includes('schedule') || name.includes('booking')) return 'appointment';
         if (name.includes('navigation') || name.includes('menu') || name.includes('nav')) return 'navigation';
@@ -71,7 +81,7 @@ export class AIVisualManager {
         const testConfig = VisualAssertionConfig.testConfigs[this.testCategory] || {};
         const browserConfig = VisualAssertionConfig.browserConfigs[process.env.BROWSER] || {};
         const envConfig = VisualAssertionConfig.environmentConfigs[process.env.NODE_ENV || 'development'] || {};
-        
+
         // CI environment detection
         const isCI = process.env.CI || process.env.GITHUB_ACTIONS || process.env.JENKINS_URL;
         const ciConfig = isCI ? VisualAssertionConfig.environmentConfigs.ci || {} : {};
@@ -144,9 +154,9 @@ export class AIVisualManager {
     async assertElement(elementKey, options = {}) {
         const selector = this.resolveSelector(elementKey);
         const testId = this.generateShortTestId(elementKey);
-        
+
         console.log(`AI Visual asserting element: ${elementKey} (${selector})`);
-        
+
         return await this.visualAssertion.smartVisualAssert(selector, testId, {
             ...this.config,
             ...options
@@ -158,9 +168,9 @@ export class AIVisualManager {
      */
     async assertCustomElement(selector, elementName, options = {}) {
         const testId = this.generateShortTestId(elementName);
-        
+
         console.log(`AI Visual custom assert: ${elementName} (${selector})`);
-        
+
         return await this.visualAssertion.smartVisualAssert(selector, testId, {
             ...this.config,
             ...options
@@ -173,7 +183,7 @@ export class AIVisualManager {
     async assertPage(options = {}) {
         const pageTestId = this.generateShortTestId('page');
         console.log(`AI Visual asserting entire page: ${pageTestId}`);
-        
+
         return await this.visualAssertion.comparePage(pageTestId, {
             ...this.config,
             ...options
@@ -192,8 +202,8 @@ export class AIVisualManager {
             try {
                 await this.assertElement(key, options);
                 const duration = Date.now() - startTime;
-                results.push({ 
-                    element: key, 
+                results.push({
+                    element: key,
                     status: 'passed',
                     duration: `${duration}ms`
                 });
@@ -212,9 +222,9 @@ export class AIVisualManager {
 
         const passed = results.filter(r => r.status === 'passed').length;
         const failed = results.filter(r => r.status === 'failed').length;
-        
+
         console.log(`AI Visual Results: ${passed} passed, ${failed} failed out of ${elementKeys.length} elements`);
-        
+
         return results;
     }
 
@@ -223,27 +233,27 @@ export class AIVisualManager {
      */
     async detectAndAssertElements(containerSelector = 'body', options = {}) {
         console.log(`AI Visual auto-detecting elements in: ${containerSelector}`);
-        
+
         const elements = await this.page.locator(containerSelector).locator('*').all();
         const detectedElements = [];
-        
+
         for (const element of elements) {
             try {
                 const tagName = await element.evaluate(el => el.tagName.toLowerCase());
                 const className = await element.getAttribute('class');
                 const id = await element.getAttribute('id');
-                
+
                 if (this.isImportantElement(tagName, className, id)) {
                     const selector = this.buildSelectorForElement(tagName, className, id);
                     const elementName = `auto-${tagName}${id ? `-${id}` : ''}${className ? `-${className.split(' ')[0]}` : ''}`;
-                    
+
                     detectedElements.push({ selector, elementName });
                 }
             } catch (error) {
                 // Skip elements that can't be processed
             }
         }
-        
+
         return await this.assertMultipleElements(detectedElements.map(e => e.selector), options);
     }
 
@@ -253,7 +263,7 @@ export class AIVisualManager {
     isImportantElement(tagName, className, id) {
         const importantTags = ['button', 'input', 'form', 'nav', 'header', 'main', 'aside', 'footer'];
         const importantClasses = ['btn', 'form', 'nav', 'header', 'footer', 'modal', 'dropdown'];
-        
+
         return (
             importantTags.includes(tagName) ||
             (className && importantClasses.some(cls => className.includes(cls))) ||
@@ -276,16 +286,16 @@ export class AIVisualManager {
     async assertElementResolutionIndependent(elementKey, options = {}) {
         const selector = this.resolveSelector(elementKey);
         const testId = this.generateShortTestId(elementKey);
-        
+
         console.log(`AI Visual (resolution-independent) asserting element: ${elementKey} (${selector})`);
-        
+
         const resolutionIndependentOptions = {
             ...this.config,
             ...options,
             resolutionIndependent: true,
             scaleToFit: true
         };
-        
+
         return await this.visualAssertion.smartVisualAssert(selector, testId, resolutionIndependentOptions);
     }
 
@@ -295,9 +305,9 @@ export class AIVisualManager {
     async assertElementContentFocused(elementKey, options = {}) {
         const selector = this.resolveSelector(elementKey);
         const testId = this.generateShortTestId(elementKey);
-        
+
         console.log(`AI Visual (content-focused) asserting element: ${elementKey} (${selector})`);
-        
+
         const contentFocusedOptions = {
             ...this.config,
             ...options,
@@ -305,7 +315,7 @@ export class AIVisualManager {
             threshold: 0.5,
             maxDiffPixelRatio: 0.4
         };
-        
+
         return await this.visualAssertion.smartVisualAssert(selector, testId, contentFocusedOptions);
     }
 
@@ -315,9 +325,9 @@ export class AIVisualManager {
     async assertElementMultiStrategy(elementKey, options = {}) {
         const selector = this.resolveSelector(elementKey);
         const testId = this.generateShortTestId(elementKey);
-        
+
         console.log(`AI Visual (multi-strategy) asserting element: ${elementKey} (${selector})`);
-        
+
         const multiStrategyOptions = {
             ...this.config,
             ...options,
@@ -325,7 +335,7 @@ export class AIVisualManager {
             focusOnContent: true,
             scaleToFit: true
         };
-        
+
         return await this.visualAssertion.smartVisualAssert(selector, testId, multiStrategyOptions);
     }
     generateFallbackSelector(elementKey) {
@@ -343,7 +353,7 @@ export class AIVisualManager {
             'footer': 'footer, .footer, .page-footer',
             'main': 'main, .main-content, .content, #main'
         };
-        
+
         return commonSelectors[elementKey] || null;
     }
 }

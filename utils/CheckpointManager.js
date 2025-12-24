@@ -1,3 +1,7 @@
+// CheckpointManager: lightweight checkpoint utility for aggregating test assertions.
+// - Collects passed and failed checkpoints (soft assertions) during a test run.
+// - Logs a concise summary with details and throws a single error if any checkpoints failed to fail the test.
+// - Public API: createCheckpoint(id, actual, expected, message), createCustomCheckpoint(id, assertionFn, message), assertAllCheckpoints.
 import { expect } from "allure-playwright";
 
 export class CheckpointManager {
@@ -28,21 +32,21 @@ export class CheckpointManager {
         const total = this.passed.length + this.failed.length;
         const summary = `\nThe Test Case executed <${total}> checkpoints: Passed <${this.passed.length}>, Failed <${this.failed.length}>\n`;
         let report = summary;
-        
+
         if (this.passed.length > 0) {
             report += " **** Passed Checkpoints **** \n" + this.passed.map(s => `ID: ${s}`).join("\n") + "\n";
         }
-        
+
         if (this.failed.length > 0) {
             report += " **** Failed Checkpoints **** \n" + this.failed.map(s => `ID: ${s}`).join("\n") + "\n";
         }
-        
+
         console.info(report);
-        
+
         if (this.failed.length > 0) {
             throw new Error(`Test failed with ${this.failed.length} failed checkpoints. Details: ${report}`);
         }
-        
+
         this.passed = [];
         this.failed = [];
     }

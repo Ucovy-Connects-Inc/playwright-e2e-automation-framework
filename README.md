@@ -66,3 +66,32 @@ npm run allure:open
 - ✅ Download professional reports for meetings
 
 **Simple, clean, and exactly what you need!** 🚀
+
+------------------------------------------------------------
+
+# 🎭 Simple Test Execution
+
+## 📋 **Test Commands (for QA team)**
+
+```bash
+# Local testing
+npm install
+npx playwright install
+npm install @dotenvx/dotenvx --save-dev
+npm run test
+
+# Generate local reports
+npm run test:allure
+npm run allure:open
+
+# Command to run
+$env:ENV="qa"; npx playwright test --project=chromium-ai-visual --grep "@test" 
+
+# Give tag here in place of @test
+
+# For AI Visual assertion tests
+# This creates images:
+$env:ENV="qa"; npx playwright test tests/AILogin.spec.js --update-snapshots --project=chromium-ai-visual --grep "Login with invalid credentials with AI visual validation"
+# This compares the new images seen with existing images previously created:
+$env:ENV="qa"; npx playwright test tests/AILogin.spec.js --headed --project=chromium-ai-visual --grep "Login with invalid credentials with AI visual validation"
+```

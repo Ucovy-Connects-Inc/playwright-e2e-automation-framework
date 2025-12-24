@@ -71,7 +71,7 @@ export class CommonUtils {
     const year = Math.floor(Math.random() * (endYear - startYear + 1)) + startYear;
     const month = Math.floor(Math.random() * 12) + 1;
     const day = Math.floor(Math.random() * 28) + 1; // Using 28 to avoid invalid dates
-    
+
     return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`;
   }
 
@@ -87,23 +87,23 @@ export class CommonUtils {
     let phoneNumber;
     let attempts = 0;
     const maxAttempts = 1000; // Prevent infinite loop
-    
+
     do {
       attempts++;
       phoneNumber = this.generatePhoneNumberAttempt();
     } while (!this.isValidPhoneNumber(phoneNumber) && attempts < maxAttempts);
-    
+
     if (attempts >= maxAttempts) {
       throw new Error('Could not generate valid phone number after maximum attempts');
     }
-    
+
     return phoneNumber;
   }
 
   // Helper method to generate a single phone number attempt
   static generatePhoneNumberAttempt() {
     let phoneNumber = '';
-    
+
     // First 3 digits (area code): avoid 100-199, avoid starting with 1 or 11
     let areaCode;
     do {
@@ -115,9 +115,9 @@ export class CommonUtils {
       parseInt(areaCode) >= 100 && parseInt(areaCode) <= 199 || // Not 100-199
       areaCode.startsWith('1') // Not starting with 1
     );
-    
+
     phoneNumber += areaCode;
-    
+
     // Next 3 digits (exchange): avoid 555 in positions 4-6 (3-5 in 0-indexed)
     let exchange;
     do {
@@ -126,14 +126,14 @@ export class CommonUtils {
         exchange += Math.floor(Math.random() * 10);
       }
     } while (exchange === '555');
-    
+
     phoneNumber += exchange;
-    
+
     // Last 4 digits (subscriber number)
     for (let i = 0; i < 4; i++) {
       phoneNumber += Math.floor(Math.random() * 10);
     }
-    
+
     return phoneNumber;
   }
 
@@ -141,20 +141,20 @@ export class CommonUtils {
   static isValidPhoneNumber(phoneNumber) {
     // Check length
     if (phoneNumber.length !== 10) return false;
-    
+
     // Check if starts with 1 or 11
     if (phoneNumber.startsWith('1')) return false;
-    
+
     // Check if area code is between 100-199
     const areaCode = parseInt(phoneNumber.substring(0, 3));
     if (areaCode >= 100 && areaCode <= 199) return false;
-    
+
     // Check if positions 4-6 are 555 (3-5 in 0-indexed)
     if (phoneNumber.substring(3, 6) === '555') return false;
-    
+
     // Check for sequence "4567890"
     if (phoneNumber.includes('4567890')) return false;
-    
+
     // Check if any digit repeats 7 times in the last 7 digits
     const last7Digits = phoneNumber.substring(3); // Last 7 digits
     for (let digit = 0; digit <= 9; digit++) {
@@ -162,7 +162,7 @@ export class CommonUtils {
       const count = (last7Digits.match(new RegExp(digitStr, 'g')) || []).length;
       if (count >= 7) return false;
     }
-    
+
     return true;
   }
 
