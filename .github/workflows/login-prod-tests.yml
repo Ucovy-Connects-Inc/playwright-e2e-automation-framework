@@ -89,7 +89,7 @@ jobs:
         run: |
           TEST_TAGS="${{ github.event.inputs.test_tags || '@positiveLogin' }}"
           echo "Running tests with tags: ${TEST_TAGS}"
-          npx playwright test \
+          ENV=${{ env.ENV }} npx playwright test \
             --project=chromium-ai-visual \
             --grep="${TEST_TAGS}" \
             --reporter=html,line \
