@@ -36,7 +36,6 @@
     "baseline:update": "npx playwright test --grep '@ai-visual' --update-snapshots",
     "visual:report": "npx playwright show-report test-results/html-report"
   },
-  
   "keywords": [
     "playwright",
     "typescript",
