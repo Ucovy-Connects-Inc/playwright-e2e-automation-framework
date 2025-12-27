@@ -65,7 +65,7 @@ export default defineConfig({
     actionTimeout: actionTimeout,
     headless: headless,
     acceptDownloads: true,
-    trace: 'on',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
 
