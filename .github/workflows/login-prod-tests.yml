@@ -47,6 +47,9 @@ jobs:
             echo "📦 Using npm install (no package-lock.json)"
             npm install
           fi
+          echo "✅ dotenv installed automatically with dependencies"
+          npm list dotenv || echo "⚠️ dotenv not found in package.json dependencies"
+
 
       - name: 🎭 Install Playwright Browsers
         run: npx playwright install --with-deps
