@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 require('dotenv').config(); // Load environment variables from .env file
 
 // Read the environment variable 'ENV' from the system or .env file
-const ENV = process.env.ENV || "qa";
+const ENV = process.env.ENV || "QA_BASE_URL";
 // Making the ENV variable set to GLOBAL
 process.env.ENV = ENV;
 
@@ -21,7 +21,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false, // For serial AI visual tests
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
+  retries,
   workers: process.env.CI ? 1 : 2, // Reduced for visual consistency
 
   reporter: [
