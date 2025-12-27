@@ -48,7 +48,6 @@ jobs:
             npm install
           fi
 
-
       - name: 🎭 Install Playwright Browsers
         run: npx playwright install --with-deps
 
