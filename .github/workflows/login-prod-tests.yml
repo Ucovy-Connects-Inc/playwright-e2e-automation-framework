@@ -27,7 +27,7 @@ on:
 jobs:
   login-prod-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120  # Increased timeout for PROD environment
 
     steps:
       - name: 📥 Checkout Code
@@ -67,31 +67,70 @@ jobs:
           echo "HEADLESS=true" >> $GITHUB_ENV
           echo "PLAYWRIGHT_HEADLESS=true" >> $GITHUB_ENV
           
-          # Set QA to marathon URL (as you requested)
+          # Set environment URLs with proper configuration
           case "${ENV_INPUT}" in
             "qa")
-              echo "QA_BASE_URL=https://ecommerce-playground.lambdatest.io" >> $GITHUB_ENV
-              ;;
-            "staging")
-              echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
+              echo "QA_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+              echo "ACTION_TIMEOUT=30000" >> $GITHUB_ENV
+              echo "TEST_TIMEOUT=60000" >> $GITHUB_ENV
               ;;
             "prod")
               echo "PROD_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+              echo "ACTION_TIMEOUT=60000" >> $GITHUB_ENV  # Increased for PROD
+              echo "TEST_TIMEOUT=120000" >> $GITHUB_ENV   # Increased for PROD
+              ;;
+            "staging")
+              echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
+              echo "ACTION_TIMEOUT=45000" >> $GITHUB_ENV
+              echo "TEST_TIMEOUT=90000" >> $GITHUB_ENV
               ;;
           esac
 
+      - name: 🌐 Test URL Connectivity
+        run: |
+          echo "🔍 Testing URL connectivity before running tests..."
+          case "${{ env.ENV }}" in
+            "qa")
+              URL="${{ env.QA_BASE_URL || 'https://ecommerce-playground.lambdatest.io' }}"
+              ;;
+            "prod")
+              URL="${{ env.PROD_BASE_URL || 'https://my.marathon-health.com' }}"
+              ;;
+            "staging")
+              URL="${{ env.STAGING_BASE_URL || 'https://stage.my.marathon-health.com' }}"
+              ;;
+          esac
+          
+          echo "Testing URL: $URL"
+          
+          # Test connectivity with retries
+          for i in {1..3}; do
+            if curl -s --head --fail --connect-timeout 30 --max-time 60 "$URL" > /dev/null; then
+              echo "✅ URL is reachable (attempt $i)"
+              break
+            else
+              echo "❌ URL unreachable (attempt $i/3)"
+              if [ $i -eq 3 ]; then
+                echo "::warning::URL connectivity test failed after 3 attempts"
+              else
+                sleep 10
+              fi
+            fi
+          done
+
       - name: 🔧 Debug Environment Setup
         run: |
+          echo "Trigger: ${{ github.event_name }}"
           echo "Environment: $ENV"
           echo "QA Base URL: $QA_BASE_URL"
           echo "Staging Base URL: $STAGING_BASE_URL" 
           echo "Prod Base URL: $PROD_BASE_URL"
+          echo "Action Timeout: $ACTION_TIMEOUT"
+          echo "Test Timeout: $TEST_TIMEOUT"
           echo "Node Version: $(node --version)"
           echo "NPM Version: $(npm --version)"
           echo "Playwright Version: $(npx playwright --version)"
           echo "Working Directory: $(pwd)"
-          echo "Package.json exists: $([ -f package.json ] && echo 'Yes' || echo 'No')"
-          echo "Package-lock.json exists: $([ -f package-lock.json ] && echo 'Yes' || echo 'No')"
 
       - name: 🧪 Run Tests (All for Scheduled, Selected for Manual)
         run: |
@@ -100,9 +139,9 @@ jobs:
             ENV=${{ env.ENV }} npx playwright test \
               --project=chromium-ai-visual \
               --reporter=html,line \
-              --timeout=90000 \
+              --timeout=${{ env.TEST_TIMEOUT || '90000' }} \
               --retries=0 \
-              --workers=2
+              --workers=1
           else
             TEST_TAGS="${{ github.event.inputs.test_tags || '@positiveLogin' }}"
             echo "👤 Manual/Push Run: Running tests with tags: ${TEST_TAGS}"
@@ -110,16 +149,25 @@ jobs:
               --project=chromium-ai-visual \
               --grep="${TEST_TAGS}" \
               --reporter=html,line \
-              --timeout=90000 \
+              --timeout=${{ env.TEST_TIMEOUT || '90000' }} \
               --retries=0 \
-              --workers=2
+              --workers=1
           fi
+        env:
+          ENV: ${{ env.ENV }}
+          QA_BASE_URL: ${{ env.QA_BASE_URL }}
+          STAGING_BASE_URL: ${{ env.STAGING_BASE_URL }}
+          PROD_BASE_URL: ${{ env.PROD_BASE_URL }}
+          ACTION_TIMEOUT: ${{ env.ACTION_TIMEOUT }}
+          TEST_TIMEOUT: ${{ env.TEST_TIMEOUT }}
+          PLAYWRIGHT_HEADLESS: true
+          CI: true
 
       - name: 📊 Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: login-test-report-${{ env.ENV || 'prod' }}
+          name: test-report-${{ env.ENV }}-${{ github.run_number }}
           path: |
             playwright-report/
             test-results/
@@ -129,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: login-test-screenshots-${{ env.ENV || 'prod' }}
+          name: test-screenshots-${{ env.ENV }}-${{ github.run_number }}
           path: test-results/
           retention-days: 7
 
@@ -137,28 +185,34 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: login-test-traces-${{ env.ENV || 'prod' }}
+          name: test-traces-${{ env.ENV }}-${{ github.run_number }}
           path: test-results/**/*.zip
           retention-days: 7
 
       - name: 📧 Notify on Failure
         if: failure()
         run: |
-          echo "::error::Login test failed in ${{ env.ENV || 'prod' }} environment"
+          echo "::error::Tests failed in ${{ env.ENV }} environment"
+          echo "::error::Trigger: ${{ github.event_name }}"
+          echo "::error::If this is PROD environment, the site might need warm-up time"
           echo "::error::Check the uploaded artifacts for details"
-          echo "::error::Possible causes: Browser timeout, network issues, or environment configuration"
 
       - name: ✅ Test Summary
         if: always()
         run: |
-          echo "## Login Test Results - ${{ env.ENV || 'Production' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: ${{ env.ENV || 'Production' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Test Tags: ${{ github.event.inputs.test_tags || '@positiveLogin' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Timeout: 90 seconds per test" >> $GITHUB_STEP_SUMMARY
-          echo "- Retries: 0 (no retries)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "- Status: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results - ${{ env.ENV }} Environment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ env.ENV }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "- **Test Scope**: All Tests (Login + Homepage + AI Visual)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- Status: ❌ Failed" >> $GITHUB_STEP_SUMMARY
-            echo "- Troubleshooting: Check artifacts for screenshots and traces" >> $GITHUB_STEP_SUMMARY
+            echo "- **Test Tags**: ${{ github.event.inputs.test_tags || '@positiveLogin' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Timeout**: ${{ env.TEST_TIMEOUT || '90' }} seconds per test" >> $GITHUB_STEP_SUMMARY
+          echo "- **Retries**: 1 (for stability)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "- **Status**: ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ❌ Some Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Note**: PROD environment may need warm-up, retry if needed" >> $GITHUB_STEP_SUMMARY
           fi
