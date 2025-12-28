@@ -70,7 +70,7 @@ jobs:
           # Set QA to marathon URL (as you requested)
           case "${ENV_INPUT}" in
             "qa")
-              echo "QA_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+              echo "QA_BASE_URL=https://ecommerce-playground.lambdatest.io" >> $GITHUB_ENV
               ;;
             "staging")
               echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
