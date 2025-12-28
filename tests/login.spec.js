@@ -44,7 +44,7 @@ test.describe("Login Page Tests", () => {
   // 1) Arrange: load valid credentials and page objects (fixture navigates to login).
   // 2) Use login helper to perform login.
   // 3) Verify login succeeded (assert home/dashboard visible or success indicator).
-  test("TC#7 Login with valid credentials @positive @login", async ({ authenticatedPage, testData }) => {
+  test("TC#7 Login with valid credentials @positiveLogin @login", async ({ authenticatedPage, testData }) => {
     // --- Arrange: load test data and page objects ---
     const { login } = testData;
     const pageFixtures = pageFixture(authenticatedPage);
