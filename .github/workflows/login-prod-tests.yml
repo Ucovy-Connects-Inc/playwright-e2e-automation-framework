@@ -11,14 +11,14 @@ on:
       environment:
         description: 'Environment to test (qa, staging, prod)'
         required: false
-        default: 'prod'
+        default: 'qa'
         type: choice
         options:
         - qa
         - staging
         - prod
   schedule:
-    - cron: '0 8 * * 1-5'  # Runs at 8 AM UTC, Monday to Friday
+    - cron: '0 */3 * * *'  # Runs every 3 hours
   push:
     branches:
       - main
