@@ -1,3 +1,5 @@
+
+
 name: Github Actions For Testing 
 
 on:
@@ -53,16 +55,24 @@ jobs:
 
       - name: ⚙️ Setup Environment Variables
         run: |
-          ENV_INPUT="${{ github.event.inputs.environment || 'prod' }}"
+          # For scheduled runs (every 3 hours), always use QA
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            ENV_INPUT="qa"
+            echo "🕒 Scheduled run - Using QA environment"
+          else
+            ENV_INPUT="${{ github.event.inputs.environment || 'qa' }}"
+            echo "👤 Manual/Push run - Using selected environment: ${ENV_INPUT}"
+          fi
+          
           echo "ENV=${ENV_INPUT}" >> $GITHUB_ENV
           echo "CI=true" >> $GITHUB_ENV
           echo "HEADLESS=true" >> $GITHUB_ENV
           echo "PLAYWRIGHT_HEADLESS=true" >> $GITHUB_ENV
           
-          # Set environment URLs based on .env file configuration
+          # Set QA to marathon URL (as you requested)
           case "${ENV_INPUT}" in
             "qa")
-              echo "QA_BASE_URL=https://ecommerce-playground.lambdatest.io" >> $GITHUB_ENV
+              echo "QA_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
               ;;
             "staging")
               echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
@@ -85,24 +95,27 @@ jobs:
           echo "Package.json exists: $([ -f package.json ] && echo 'Yes' || echo 'No')"
           echo "Package-lock.json exists: $([ -f package-lock.json ] && echo 'Yes' || echo 'No')"
 
-      - name: 🧪 Run Login Tests with Positive Login
+      - name: 🧪 Run Tests (All for Scheduled, Selected for Manual)
         run: |
-          TEST_TAGS="${{ github.event.inputs.test_tags || '@positiveLogin' }}"
-          echo "Running tests with tags: ${TEST_TAGS}"
-          ENV=${{ env.ENV }} npx playwright test \
-            --project=chromium-ai-visual \
-            --grep="${TEST_TAGS}" \
-            --reporter=html,line \
-            --timeout=90000 \
-            --retries=0 \
-            --workers=1
-        env:
-          ENV: ${{ env.ENV }}
-          QA_BASE_URL: ${{ env.QA_BASE_URL }}
-          STAGING_BASE_URL: ${{ env.STAGING_BASE_URL }}
-          PROD_BASE_URL: ${{ env.PROD_BASE_URL }}
-          PLAYWRIGHT_HEADLESS: true
-          CI: true
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "🕒 Scheduled Run: Running ALL tests (Login + Homepage + AI Visual)"
+            ENV=${{ env.ENV }} npx playwright test \
+              --project=chromium-ai-visual \
+              --reporter=html,line \
+              --timeout=90000 \
+              --retries=0 \
+              --workers=2
+          else
+            TEST_TAGS="${{ github.event.inputs.test_tags || '@positiveLogin' }}"
+            echo "👤 Manual/Push Run: Running tests with tags: ${TEST_TAGS}"
+            ENV=${{ env.ENV }} npx playwright test \
+              --project=chromium-ai-visual \
+              --grep="${TEST_TAGS}" \
+              --reporter=html,line \
+              --timeout=90000 \
+              --retries=0 \
+              --workers=2
+          fi
 
       - name: 📊 Upload Test Results
         uses: actions/upload-artifact@v4
