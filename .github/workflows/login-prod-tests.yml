@@ -1,4 +1,3 @@
-
 name: Github Actions For Testing 
 
 on:
@@ -28,7 +27,7 @@ on:
 jobs:
   login-prod-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: 📥 Checkout Code
@@ -52,7 +51,7 @@ jobs:
       - name: 🎭 Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      - name: ⚙️ Setup Environment Variables
+      - name: ⚙️ Setup Environment Variables (No URLs - Framework Handles It)
         run: |
           # For scheduled runs (every 3 hours), always use QA
           if [ "${{ github.event_name }}" == "schedule" ]; then
@@ -67,34 +66,28 @@ jobs:
           echo "CI=true" >> $GITHUB_ENV
           echo "HEADLESS=true" >> $GITHUB_ENV
           echo "PLAYWRIGHT_HEADLESS=true" >> $GITHUB_ENV
-          
-          # Set QA to marathon URL (as you requested)
-          case "${ENV_INPUT}" in
-            "qa")
-              echo "QA_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
-              ;;
-            "staging")
-              echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
-              ;;
-            "prod")
-              echo "PROD_BASE_URL=https://ecommerce-playground.lambdatest.io" >> $GITHUB_ENV
-              ;;
-          esac
 
       - name: 🔧 Debug Environment Setup
         run: |
+          echo "Trigger: ${{ github.event_name }}"
           echo "Environment: $ENV"
-          echo "QA Base URL: $QA_BASE_URL"
-          echo "Staging Base URL: $STAGING_BASE_URL" 
-          echo "Prod Base URL: $PROD_BASE_URL"
           echo "Node Version: $(node --version)"
           echo "NPM Version: $(npm --version)"
           echo "Playwright Version: $(npx playwright --version)"
           echo "Working Directory: $(pwd)"
           echo "Package.json exists: $([ -f package.json ] && echo 'Yes' || echo 'No')"
           echo "Package-lock.json exists: $([ -f package-lock.json ] && echo 'Yes' || echo 'No')"
+          
+          # Show .env file content to debug URL issues
+          echo "=== .env file content ==="
+          if [ -f .env ]; then
+            cat .env
+          else
+            echo "❌ .env file not found!"
+          fi
+          echo "========================="
 
-      - name: 🧪 Run Tests (All for Scheduled, Selected for Manual)
+      - name: 🧪 Run Tests (Framework Picks URL from .env)
         run: |
           if [ "${{ github.event_name }}" == "schedule" ]; then
             echo "🕒 Scheduled Run: Running ALL tests (Login + Homepage + AI Visual)"
@@ -102,8 +95,8 @@ jobs:
               --project=chromium-ai-visual \
               --reporter=html,line \
               --timeout=90000 \
-              --retries=0 \
-              --workers=2
+              --retries=1 \
+              --workers=1
           else
             TEST_TAGS="${{ github.event.inputs.test_tags || '@positiveLogin' }}"
             echo "👤 Manual/Push Run: Running tests with tags: ${TEST_TAGS}"
@@ -112,15 +105,19 @@ jobs:
               --grep="${TEST_TAGS}" \
               --reporter=html,line \
               --timeout=90000 \
-              --retries=0 \
-              --workers=2
+              --retries=1 \
+              --workers=1
           fi
+        env:
+          CI: true
+          HEADLESS: true
+          PLAYWRIGHT_HEADLESS: true
 
       - name: 📊 Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: login-test-report-${{ env.ENV || 'prod' }}
+          name: test-report-${{ env.ENV }}-${{ github.run_number }}
           path: |
             playwright-report/
             test-results/
@@ -130,7 +127,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: login-test-screenshots-${{ env.ENV || 'prod' }}
+          name: test-screenshots-${{ env.ENV }}-${{ github.run_number }}
           path: test-results/
           retention-days: 7
 
@@ -138,28 +135,32 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: login-test-traces-${{ env.ENV || 'prod' }}
+          name: test-traces-${{ env.ENV }}-${{ github.run_number }}
           path: test-results/**/*.zip
           retention-days: 7
 
       - name: 📧 Notify on Failure
         if: failure()
         run: |
-          echo "::error::Login test failed in ${{ env.ENV || 'prod' }} environment"
+          echo "::error::Tests failed in ${{ env.ENV }} environment"
+          echo "::error::Trigger: ${{ github.event_name }}"
           echo "::error::Check the uploaded artifacts for details"
-          echo "::error::Possible causes: Browser timeout, network issues, or environment configuration"
 
       - name: ✅ Test Summary
         if: always()
         run: |
-          echo "## Login Test Results - ${{ env.ENV || 'Production' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: ${{ env.ENV || 'Production' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Test Tags: ${{ github.event.inputs.test_tags || '@positiveLogin' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Timeout: 90 seconds per test" >> $GITHUB_STEP_SUMMARY
-          echo "- Retries: 0 (no retries)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "- Status: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results - ${{ env.ENV }} Environment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ env.ENV }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "- **Test Scope**: All Tests (Login + Homepage + AI Visual)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- Status: ❌ Failed" >> $GITHUB_STEP_SUMMARY
-            echo "- Troubleshooting: Check artifacts for screenshots and traces" >> $GITHUB_STEP_SUMMARY
+            echo "- **Test Tags**: ${{ github.event.inputs.test_tags || '@positiveLogin' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Timeout**: 90 seconds per test" >> $GITHUB_STEP_SUMMARY
+          echo "- **Retries**: 1 (for stability)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "- **Status**: ✅ All Tests Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ❌ Some Tests Failed" >> $GITHUB_STEP_SUMMARY
           fi
