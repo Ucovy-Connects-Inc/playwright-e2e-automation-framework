@@ -1,5 +1,4 @@
 
-
 name: Github Actions For Testing 
 
 on:
@@ -78,7 +77,7 @@ jobs:
               echo "STAGING_BASE_URL=https://stage.my.marathon-health.com" >> $GITHUB_ENV
               ;;
             "prod")
-              echo "PROD_BASE_URL=https://my.marathon-health.com" >> $GITHUB_ENV
+              echo "PROD_BASE_URL=https://ecommerce-playground.lambdatest.io" >> $GITHUB_ENV
               ;;
           esac
 
