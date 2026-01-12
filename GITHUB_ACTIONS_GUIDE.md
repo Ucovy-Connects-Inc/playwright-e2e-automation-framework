@@ -1,162 +1,176 @@
-# 🚀 GitHub Actions CI/CD Guide
+import type { TestCase, TestResult, Reporter } from '@playwright/test/reporter';
+import axios from 'axios';
+import https from 'https';
 
-## 🎯 **Your Framework is GitHub Ready!** ✅
+// (Optional) If you want to capture info logs, keep this, but after imports:
+const infoMessages: string[] = [];
+const originalConsoleInfo = console.info;
+console.info = function (...args: any[]) {
+  infoMessages.push(args.join(' '));
+  originalConsoleInfo.apply(console, args);
+};
 
-Your Playwright framework now has a complete GitHub Actions workflow for automated testing and management reporting.
+/**
+ * ✅ Read from environment variables (NO secrets in code)
+ * Set these in:
+ * - Local: .env (and add .env to .gitignore)
+ * - CI: GitHub Actions Secrets
+ */
+const JIRA_BASE_URL = process.env.JIRA_BASE_URL || 'https://ucovyconnectsinc.atlassian.net';
+const JIRA_EMAIL = process.env.JIRA_EMAIL;
+const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 
-## 📋 **What's Configured:**
+if (!JIRA_EMAIL || !JIRA_API_TOKEN) {
+  // Don't crash imports; just warn. Reporter will fail only when it tries Jira.
+  console.warn(
+    'JiraReporter: Missing JIRA_EMAIL or JIRA_API_TOKEN in environment variables. Jira ticket creation/search will be skipped.'
+  );
+}
 
-### **🔧 Workflow Features:**
-- ✅ **Manual Trigger** - Management can run tests on-demand
-- ✅ **Environment Selection** - QA, Dev, Production
-- ✅ **Browser Selection** - Chromium, Firefox, WebKit, or All
-- ✅ **Allure Reports** - Beautiful dashboards with pass/fail percentages
-- ✅ **Management Artifacts** - Downloadable reports with screenshots/videos
-- ✅ **Error Handling** - Robust dependency management and fallbacks
+const JIRA_AUTH =
+  JIRA_EMAIL && JIRA_API_TOKEN
+    ? Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')
+    : '';
 
-### **🎭 Test Capabilities:**
-- ✅ **Environment Variables** - `.env` file support
-- ✅ **CAPTCHA Bypass** - Ready for automation secret integration
-- ✅ **Multi-browser Testing** - Chrome, Firefox, Safari
-- ✅ **Video Recording** - Full test execution videos
-- ✅ **Screenshots** - Visual evidence of test steps
-- ✅ **Trace Collection** - Complete debugging information
+const agent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
-## 🎮 **How to Run Tests on GitHub:**
+interface JiraIssueSearchResult {
+  url: string;
+  status: string;
+}
 
-### **1. Navigate to Actions Tab:**
-```
-Your Repository → Actions → 🎭 Run Tests for Management → Run workflow
-```
+function jiraEnabled(): boolean {
+  return Boolean(JIRA_AUTH);
+}
 
-### **2. Select Options:**
-- **Environment:** `qa` / `dev` / `prod`
-- **Browser:** `chromium` / `firefox` / `webkit` / `all`
+async function findJiraIssueBySummary(summary: string): Promise<JiraIssueSearchResult | null> {
+  if (!jiraEnabled()) return null;
 
-### **3. Click "Run workflow"** 🚀
+  try {
+    const findTicket = {
+      jql: `summary~"${summary.replace(/"/g, '\\"')}"`,
+      fields: ['key', 'status'],
+      maxResults: 1,
+    };
 
-## 📊 **For Management Team:**
+    const response = await axios.post(`${JIRA_BASE_URL}/rest/api/3/search/jql`, findTicket, {
+      headers: {
+        Authorization: `Basic ${JIRA_AUTH}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      httpsAgent: agent,
+    });
 
-### **📈 Getting Reports:**
-1. **Go to Actions tab** in your GitHub repository
-2. **Click on the completed workflow run**
-3. **Download the Management Report artifact**
-4. **Extract the zip file**
-5. **Open `allure-report/index.html`** in browser
+    const issues = response.data?.issues;
+    if (issues && issues.length > 0) {
+      const issue = issues[0];
+      const url = `${JIRA_BASE_URL}/browse/${issue.key}`;
+      const status =
+        issue.fields?.status?.name && typeof issue.fields.status.name === 'string'
+          ? issue.fields.status.name
+          : '';
+      return { url, status };
+    }
 
-### **📋 What You'll See:**
-- **Pass/Fail Percentages** with beautiful charts
-- **Test Execution Timeline** 
-- **Screenshots** of any failures
-- **Videos** of test execution
-- **Detailed Error Reports** with stack traces
+    return null;
+  } catch (error) {
+    console.error('Error finding Jira issue:', error);
+    return null;
+  }
+}
 
-### **🎯 Report Benefits:**
-- **Visual Dashboard** - Easy to understand charts
-- **Executive Summary** - Key metrics at a glance
-- **Drill-down Capability** - Click for detailed information
-- **Historical Trends** - Compare runs over time
+async function createJiraIssue(summary: string, description: string, teamName: string): Promise<string | null> {
+  if (!jiraEnabled()) return null;
 
-## 🔧 **Technical Setup Complete:**
+  try {
+    const jiraBody = {
+      fields: {
+        project: { id: '10000' },
+        issuetype: { id: '10001' },
+        summary: `[${teamName}] ${summary}`,
+        description: {
+          version: 1,
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: description }],
+            },
+          ],
+        },
+        assignee: { id: '712020:b26afb57-e210-4ff3-9248-e1cf3555c486' },
+        labels: [],
+        parent: { id: '10003' },
+        customfield_10001: 'a94ed843-0d86-46e9-bd08-6838336b32b5',
+        customfield_10020: 432,
+        customfield_10016: 0,
+        fixVersions: [],
+        customfield_10021: [],
+      },
+    };
 
-### **✅ Files Created/Updated:**
-```
-📁 .github/workflows/
-  └── manual-tests.yml          # GitHub Actions workflow
+    const response = await axios.post(`${JIRA_BASE_URL}/rest/api/3/issue`, jiraBody, {
+      headers: {
+        Authorization: `Basic ${JIRA_AUTH}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      httpsAgent: agent,
+    });
 
-📁 Root Directory/
-  ├── .env                      # Environment configuration
-  ├── .env.example             # Template for team
-  ├── package-lock.json        # Dependency lock file
-  ├── playwright.config.js     # Updated with env variables
-  └── GITHUB_ACTIONS_GUIDE.md  # This guide
-```
+    console.info('Jira issue created:', response.data.key);
+    await new Promise((resolve) => setTimeout(resolve, 20000)); // Wait for 20 seconds
 
-### **✅ Environment Variables Configured:**
-- `ENV` - Environment selection (qa/dev/prod)
-- `HEADLESS` - Browser display mode
-- `RETRIES` - Test retry configuration
-- `WORKERS` - Parallel execution control
-- `AUTOMATION_SECRET` - CAPTCHA bypass (when configured)
+    return response.data.key ? `${JIRA_BASE_URL}/browse/${response.data.key}` : null;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      console.error('Error creating Jira issue:', error.response?.data || error.message);
+      if (error.response) console.error('Response data:', error.response);
+    } else {
+      console.error('Error creating Jira issue:', error);
+    }
+    return null;
+  }
+}
 
-## ⚙️ **Advanced Configuration:**
+class JiraReporter implements Reporter {
+  async onTestEnd(test: TestCase, result: TestResult) {
+    const totalRetries = test.parent?.project()?.retries ?? 0;
 
-### **🔐 Add Repository Secrets:**
-```
-Settings → Secrets and variables → Actions → New repository secret
-```
+    // Only create a Jira ticket if this is the final failed attempt (after all retries)
+    if (result.status === 'failed' && result.retry === totalRetries) {
+      if (!jiraEnabled()) return; // ✅ skip if env is not set
 
-**Add these secrets:**
-- `AUTOMATION_SECRET` - For CAPTCHA bypass
-- `QA_BASE_URL` - QA environment URL (optional override)
-- `DEV_BASE_URL` - Dev environment URL (optional override)  
-- `PROD_BASE_URL` - Prod environment URL (optional override)
+      const summary = `Test Failed: ${test.title}`;
 
-### **🎯 Customize Execution:**
-Edit `.github/workflows/manual-tests.yml` to:
-- Add more environments
-- Configure different browsers
-- Adjust timeout settings
-- Add notification integrations
+      const consoleInfoMessages = result.stdout
+        ? result.stdout.filter((chunk: any) => typeof chunk === 'string').join('')
+        : '';
 
-## 🎉 **Success Indicators:**
+      const description = `**Test Title:** ${test.title}\n\n**Error Message:** ${
+        result.error?.message || 'No error message'
+      }\n\n**Console Info Logs:**\n${consoleInfoMessages || 'No console info logs captured.'}`;
 
-### **✅ Green Workflow Run:**
-- All tests passed
-- Reports generated successfully
-- Artifacts uploaded
+      const existingIssue = await findJiraIssueBySummary(summary);
 
-### **🔍 Red Workflow Run:**
-- Download artifacts to see failure details
-- Check screenshots and videos
-- Review trace files for debugging
+      if (existingIssue) {
+        console.info(`Jira issue already exists: ${existingIssue.url} (status: ${existingIssue.status})`);
+        if (existingIssue.status.toLowerCase() !== 'done') return;
+        console.info('Existing issue is Done, will create a new ticket.');
+      }
 
-## 💡 **Pro Tips:**
+      const teamAnnotation = test.annotations.find((a) => a.type === 'team');
+      const teamName = teamAnnotation?.description || 'Default Team';
 
-### **🎯 For Development Team:**
-```bash
-# Test locally before pushing
-$env:ENV="qa"; npm test
+      const issueUrl = await createJiraIssue(summary, description, teamName);
 
-# Debug specific issues
-npx playwright show-trace test-results/trace.zip
-```
+      if (issueUrl) console.info(`Jira issue created successfully: ${issueUrl}`);
+      else console.error('Failed to create Jira issue.');
+    }
+  }
+}
 
-### **🎯 For Management:**
-- **Run tests before releases** for confidence
-- **Use artifacts** for evidence in reports
-- **Monitor trends** across different environments
-- **Share reports** with stakeholders
-
-## 🚨 **Troubleshooting:**
-
-### **Common Issues:**
-1. **Missing Dependencies** - Fixed with npm install fallback
-2. **Browser Installation** - Handled automatically
-3. **Environment URLs** - Configured in .env file
-4. **CAPTCHA Bypass** - Add AUTOMATION_SECRET to repository secrets
-
-### **Support Commands:**
-```bash
-# Check local configuration
-npm test
-
-# View test results locally  
-npx playwright show-report
-
-# Generate Allure report locally
-npx allure serve allure-results
-```
-
----
-
-## 🎊 **Your Framework Status: PRODUCTION READY!** 
-
-✅ **Local Testing** - Environment-driven configuration  
-✅ **CI/CD Pipeline** - GitHub Actions workflow  
-✅ **Management Reporting** - Allure dashboards  
-✅ **Multi-Environment** - QA, Dev, Production support  
-✅ **Security Ready** - CAPTCHA bypass integration  
-✅ **Team Collaboration** - Shared configuration templates  
-
-**Ready to deliver reliable, automated testing with professional reporting!** 🚀
+export default JiraReporter;
