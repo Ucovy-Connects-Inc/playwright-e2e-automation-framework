@@ -41,40 +41,34 @@ interface JiraIssueSearchResult {
   status: string;
 }
 
-function jiraEnabled(): boolean {
-  return Boolean(JIRA_AUTH);
-}
-
 async function findJiraIssueBySummary(summary: string): Promise<JiraIssueSearchResult | null> {
-  if (!jiraEnabled()) return null;
-
   try {
     const findTicket = {
-      jql: `summary~"${summary.replace(/"/g, '\\"')}"`,
-      fields: ['key', 'status'],
-      maxResults: 1,
+      jql: `summary~"${summary}"`,
+      fields: ["key", "status"],
+      maxResults: 1
     };
-
-    const response = await axios.post(`${JIRA_BASE_URL}/rest/api/3/search/jql`, findTicket, {
-      headers: {
-        Authorization: `Basic ${JIRA_AUTH}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      httpsAgent: agent,
-    });
-
-    const issues = response.data?.issues;
+    const response = await axios.post(
+      `${JIRA_BASE_URL}/rest/api/3/search/jql`,
+      findTicket,
+      {
+        headers: {
+          Authorization: `Basic ${JIRA_AUTH}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        httpsAgent: agent,
+      }
+    );
+    // Log the full response body for debugging
+    console.log('Jira search response body:', JSON.stringify(response.data, null, 2));
+    const issues = response.data.issues;
     if (issues && issues.length > 0) {
       const issue = issues[0];
       const url = `${JIRA_BASE_URL}/browse/${issue.key}`;
-      const status =
-        issue.fields?.status?.name && typeof issue.fields.status.name === 'string'
-          ? issue.fields.status.name
-          : '';
+      const status = issue.fields && issue.fields.status && issue.fields.status.name ? issue.fields.status.name : '';
       return { url, status };
     }
-
     return null;
   } catch (error) {
     console.error('Error finding Jira issue:', error);
@@ -82,9 +76,11 @@ async function findJiraIssueBySummary(summary: string): Promise<JiraIssueSearchR
   }
 }
 
-async function createJiraIssue(summary: string, description: string, teamName: string): Promise<string | null> {
-  if (!jiraEnabled()) return null;
-
+async function createJiraIssue(
+  summary: string,
+  description: string,
+  teamName: string
+): Promise<string | null> {
   try {
     const jiraBody = {
       fields: {
@@ -112,23 +108,32 @@ async function createJiraIssue(summary: string, description: string, teamName: s
       },
     };
 
-    const response = await axios.post(`${JIRA_BASE_URL}/rest/api/3/issue`, jiraBody, {
-      headers: {
-        Authorization: `Basic ${JIRA_AUTH}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      httpsAgent: agent,
-    });
-
+    const response = await axios.post(
+      `${JIRA_BASE_URL}/rest/api/3/issue`,
+      jiraBody,
+      {
+        headers: {
+          Authorization: `Basic ${JIRA_AUTH}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        httpsAgent: agent,
+      }
+    );
     console.info('Jira issue created:', response.data.key);
     await new Promise((resolve) => setTimeout(resolve, 20000)); // Wait for 20 seconds
-
-    return response.data.key ? `${JIRA_BASE_URL}/browse/${response.data.key}` : null;
+    return response.data.key
+      ? response.data.key // Return the issue key, not the URL
+      : null;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error('Error creating Jira issue:', error.response?.data || error.message);
-      if (error.response) console.error('Response data:', error.response);
+      console.error(
+        'Error creating Jira issue:',
+        error.response?.data || error.message
+      );
+      if (error.response) {
+        console.error('Response data:', error.response);
+      }
     } else {
       console.error('Error creating Jira issue:', error);
     }
@@ -136,41 +141,96 @@ async function createJiraIssue(summary: string, description: string, teamName: s
   }
 }
 
+// Uploads an attachment (e.g., screenshot) to a Jira issue
+async function uploadJiraAttachment(issueKey: string, filePath: string): Promise<string | null> {
+  try {
+    const url = `${JIRA_BASE_URL}/rest/api/3/issue/${issueKey}/attachments`;
+    const form = new FormData();
+    form.append('file', fs.createReadStream(filePath));
+    const response = await axios.post(url, form, {
+      headers: {
+        ...form.getHeaders(),
+        Authorization: `Basic ${JIRA_AUTH}`,
+        'X-Atlassian-Token': 'no-check',
+      },
+      httpsAgent: agent,
+    });
+    return response.data && response.data[0] && response.data[0].id ? response.data[0].id : null;
+  } catch (error) {
+    console.error('Error uploading Jira attachment:', error);
+    return null;
+  }
+}
+
 class JiraReporter implements Reporter {
   async onTestEnd(test: TestCase, result: TestResult) {
     const totalRetries = test.parent?.project()?.retries ?? 0;
-
     // Only create a Jira ticket if this is the final failed attempt (after all retries)
     if (result.status === 'failed' && result.retry === totalRetries) {
-      if (!jiraEnabled()) return; // ✅ skip if env is not set
-
       const summary = `Test Failed: ${test.title}`;
-
       const consoleInfoMessages = result.stdout
         ? result.stdout.filter((chunk: any) => typeof chunk === 'string').join('')
         : '';
-
       const description = `**Test Title:** ${test.title}\n\n**Error Message:** ${
         result.error?.message || 'No error message'
-      }\n\n**Console Info Logs:**\n${consoleInfoMessages || 'No console info logs captured.'}`;
-
+      }\n\n**Console Info Logs:**\n${
+        consoleInfoMessages || 'No console info logs captured.'
+      }`;
       const existingIssue = await findJiraIssueBySummary(summary);
-
       if (existingIssue) {
         console.info(`Jira issue already exists: ${existingIssue.url} (status: ${existingIssue.status})`);
-        if (existingIssue.status.toLowerCase() !== 'done') return;
-        console.info('Existing issue is Done, will create a new ticket.');
+        if (existingIssue.status.toLowerCase() !== 'done') {
+          // If status is not Done, do not create a new ticket
+          return;
+        } else {
+          console.info('Existing issue is Done, will create a new ticket.');
+        }
       }
-
+      // Get team name from annotation
       const teamAnnotation = test.annotations.find((a) => a.type === 'team');
       const teamName = teamAnnotation?.description || 'Default Team';
 
-      const issueUrl = await createJiraIssue(summary, description, teamName);
+      // Create the Jira issue and get the issue key
+      const issueKey = await createJiraIssue(summary, description, teamName);
+      if (issueKey) {
+        console.info(`Jira issue created successfully: ${JIRA_BASE_URL}/browse/${issueKey}`);
+        // Try to find a screenshot in attachments (Playwright stores them in result.attachments)
+        const attachmentsToUpload = result.attachments?.filter(
+          (a: any) =>
+            a.name &&
+            (
+              a.name.toLowerCase().includes('screenshot') ||
+              a.name.toLowerCase().includes('trace') ||
+              a.name.toLowerCase().includes('video') ||
+              (a.path && (
+                a.path.toLowerCase().endsWith('.zip') ||
+                a.path.toLowerCase().endsWith('.webm') ||
+                a.path.toLowerCase().endsWith('.mp4')
+              ))
+            ) &&
+            a.path
+        ) || [];
 
-      if (issueUrl) console.info(`Jira issue created successfully: ${issueUrl}`);
-      else console.error('Failed to create Jira issue.');
+        if (attachmentsToUpload.length > 0) {
+          for (const att of attachmentsToUpload) {
+            if (att.path) {
+              const attachmentId = await uploadJiraAttachment(issueKey, att.path);
+              if (attachmentId) {
+                console.info(`${att.name} uploaded to Jira issue: ${attachmentId}`);
+              } else {
+                console.error(`Failed to upload ${att.name} to Jira issue.`);
+              }
+            }
+          }
+        } else {
+          console.info('No screenshot or trace found to upload to Jira.');
+        }
+      } else {
+        console.error('Failed to create Jira issue.');
+      }
     }
   }
 }
 
 export default JiraReporter;
+-----------------------------------------------------
