@@ -1,236 +1,118 @@
-import type { TestCase, TestResult, Reporter } from '@playwright/test/reporter';
-import axios from 'axios';
-import https from 'https';
 
-// (Optional) If you want to capture info logs, keep this, but after imports:
-const infoMessages: string[] = [];
-const originalConsoleInfo = console.info;
-console.info = function (...args: any[]) {
-  infoMessages.push(args.join(' '));
-  originalConsoleInfo.apply(console, args);
-};
+# Playwright Jira Reporter
 
-/**
- * ✅ Read from environment variables (NO secrets in code)
- * Set these in:
- * - Local: .env (and add .env to .gitignore)
- * - CI: GitHub Actions Secrets
- */
-const JIRA_BASE_URL = process.env.JIRA_BASE_URL || 'https://ucovyconnectsinc.atlassian.net';
-const JIRA_EMAIL = process.env.JIRA_EMAIL;
-const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
+This custom Playwright reporter automates Jira ticket creation for failed tests, with advanced duplicate detection and log filtering.
 
-if (!JIRA_EMAIL || !JIRA_API_TOKEN) {
-  // Don't crash imports; just warn. Reporter will fail only when it tries Jira.
-  console.warn(
-    'JiraReporter: Missing JIRA_EMAIL or JIRA_API_TOKEN in environment variables. Jira ticket creation/search will be skipped.'
-  );
-}
+## Features
 
-const JIRA_AUTH =
-  JIRA_EMAIL && JIRA_API_TOKEN
-    ? Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString('base64')
-    : '';
+- **Automatic Jira bug creation** for failed Playwright tests
+- **Environment-based control:** Only creates tickets if `ENABLE_JIRA=true` is set
+- **Duplicate detection:**
+  - Checks for existing tickets by summary
+  - If a ticket is found and status is not `Done`, it skips creating a new ticket
+  - If status is `Done`, it creates a new ticket
+  - If a ticket is found but the environment (e.g., test environment) is different, it creates a new ticket
+  - If the environment is the same, it considers it a duplicate and skips
+- **Log filtering for steps to reproduce:** Only console logs starting with `>` are included in the Jira ticket's steps
+- **Attaches screenshots, traces, and videos** to the Jira ticket
 
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-});
+## How It Works
 
-interface JiraIssueSearchResult {
-  url: string;
-  status: string;
-}
+1. On test failure, the reporter checks for an existing Jira ticket by summary.
+2. If a ticket exists:
+   - If status is not `Done` and environment is the same, it skips creating a new ticket (duplicate).
+   - If status is `Done` or environment is different, it creates a new ticket.
+3. If no ticket exists, it creates a new Jira ticket.
+4. Only console logs starting with `>` are included as steps to reproduce in the ticket.
+5. Attachments (screenshots, traces, videos) are uploaded to the ticket.
 
-async function findJiraIssueBySummary(summary: string): Promise<JiraIssueSearchResult | null> {
-  try {
-    const findTicket = {
-      jql: `summary~"${summary}"`,
-      fields: ["key", "status"],
-      maxResults: 1
-    };
-    const response = await axios.post(
-      `${JIRA_BASE_URL}/rest/api/3/search/jql`,
-      findTicket,
-      {
-        headers: {
-          Authorization: `Basic ${JIRA_AUTH}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        httpsAgent: agent,
-      }
-    );
-    // Log the full response body for debugging
-    console.log('Jira search response body:', JSON.stringify(response.data, null, 2));
-    const issues = response.data.issues;
-    if (issues && issues.length > 0) {
-      const issue = issues[0];
-      const url = `${JIRA_BASE_URL}/browse/${issue.key}`;
-      const status = issue.fields && issue.fields.status && issue.fields.status.name ? issue.fields.status.name : '';
-      return { url, status };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error finding Jira issue:', error);
-    return null;
-  }
-}
+## Usage
 
-async function createJiraIssue(
-  summary: string,
-  description: string,
-  teamName: string
-): Promise<string | null> {
-  try {
-    const jiraBody = {
-      fields: {
-        project: { id: '10000' },
-        issuetype: { id: '10001' },
-        summary: `[${teamName}] ${summary}`,
-        description: {
-          version: 1,
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: description }],
-            },
-          ],
-        },
-        assignee: { id: '712020:b26afb57-e210-4ff3-9248-e1cf3555c486' },
-        labels: [],
-        parent: { id: '10003' },
-        customfield_10001: 'a94ed843-0d86-46e9-bd08-6838336b32b5',
-        customfield_10020: 432,
-        customfield_10016: 0,
-        fixVersions: [],
-        customfield_10021: [],
-      },
-    };
+### 1. Compile the Reporter
 
-    const response = await axios.post(
-      `${JIRA_BASE_URL}/rest/api/3/issue`,
-      jiraBody,
-      {
-        headers: {
-          Authorization: `Basic ${JIRA_AUTH}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        httpsAgent: agent,
-      }
-    );
-    console.info('Jira issue created:', response.data.key);
-    await new Promise((resolve) => setTimeout(resolve, 20000)); // Wait for 20 seconds
-    return response.data.key
-      ? response.data.key // Return the issue key, not the URL
-      : null;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error(
-        'Error creating Jira issue:',
-        error.response?.data || error.message
-      );
-      if (error.response) {
-        console.error('Response data:', error.response);
-      }
-    } else {
-      console.error('Error creating Jira issue:', error);
-    }
-    return null;
-  }
-}
+Before running tests, compile `jiraReporter.ts` to `./dist/utils/jiraReporter.js`:
 
-// Uploads an attachment (e.g., screenshot) to a Jira issue
-async function uploadJiraAttachment(issueKey: string, filePath: string): Promise<string | null> {
-  try {
-    const url = `${JIRA_BASE_URL}/rest/api/3/issue/${issueKey}/attachments`;
-    const form = new FormData();
-    form.append('file', fs.createReadStream(filePath));
-    const response = await axios.post(url, form, {
-      headers: {
-        ...form.getHeaders(),
-        Authorization: `Basic ${JIRA_AUTH}`,
-        'X-Atlassian-Token': 'no-check',
-      },
-      httpsAgent: agent,
-    });
-    return response.data && response.data[0] && response.data[0].id ? response.data[0].id : null;
-  } catch (error) {
-    console.error('Error uploading Jira attachment:', error);
-    return null;
-  }
-}
+```sh
+tsc src/utils/jiraReporter.ts --outDir dist/utils --esModuleInterop
+```
+Or, if you use a build script:
 
-class JiraReporter implements Reporter {
-  async onTestEnd(test: TestCase, result: TestResult) {
-    const totalRetries = test.parent?.project()?.retries ?? 0;
-    // Only create a Jira ticket if this is the final failed attempt (after all retries)
-    if (result.status === 'failed' && result.retry === totalRetries) {
-      const summary = `Test Failed: ${test.title}`;
-      const consoleInfoMessages = result.stdout
-        ? result.stdout.filter((chunk: any) => typeof chunk === 'string').join('')
-        : '';
-      const description = `**Test Title:** ${test.title}\n\n**Error Message:** ${
-        result.error?.message || 'No error message'
-      }\n\n**Console Info Logs:**\n${
-        consoleInfoMessages || 'No console info logs captured.'
-      }`;
-      const existingIssue = await findJiraIssueBySummary(summary);
-      if (existingIssue) {
-        console.info(`Jira issue already exists: ${existingIssue.url} (status: ${existingIssue.status})`);
-        if (existingIssue.status.toLowerCase() !== 'done') {
-          // If status is not Done, do not create a new ticket
-          return;
-        } else {
-          console.info('Existing issue is Done, will create a new ticket.');
-        }
-      }
-      // Get team name from annotation
-      const teamAnnotation = test.annotations.find((a) => a.type === 'team');
-      const teamName = teamAnnotation?.description || 'Default Team';
+```sh
+npm run build
+```
 
-      // Create the Jira issue and get the issue key
-      const issueKey = await createJiraIssue(summary, description, teamName);
-      if (issueKey) {
-        console.info(`Jira issue created successfully: ${JIRA_BASE_URL}/browse/${issueKey}`);
-        // Try to find a screenshot in attachments (Playwright stores them in result.attachments)
-        const attachmentsToUpload = result.attachments?.filter(
-          (a: any) =>
-            a.name &&
-            (
-              a.name.toLowerCase().includes('screenshot') ||
-              a.name.toLowerCase().includes('trace') ||
-              a.name.toLowerCase().includes('video') ||
-              (a.path && (
-                a.path.toLowerCase().endsWith('.zip') ||
-                a.path.toLowerCase().endsWith('.webm') ||
-                a.path.toLowerCase().endsWith('.mp4')
-              ))
-            ) &&
-            a.path
-        ) || [];
+### 2. Configure Playwright
 
-        if (attachmentsToUpload.length > 0) {
-          for (const att of attachmentsToUpload) {
-            if (att.path) {
-              const attachmentId = await uploadJiraAttachment(issueKey, att.path);
-              if (attachmentId) {
-                console.info(`${att.name} uploaded to Jira issue: ${attachmentId}`);
-              } else {
-                console.error(`Failed to upload ${att.name} to Jira issue.`);
-              }
-            }
-          }
-        } else {
-          console.info('No screenshot or trace found to upload to Jira.');
-        }
-      } else {
-        console.error('Failed to create Jira issue.');
-      }
-    }
-  }
-}
+In your `playwright.config.ts`, include the reporter only if `ENABLE_JIRA=true`:
 
-export default JiraReporter;
------------------------------------------------------
+```typescript
+const enableJiraReporter = process.env.ENABLE_JIRA || 'true';
+```
+
+### 3. Run Tests with Jira Reporter Enabled
+
+Set the environment variable and run your tests:
+
+**Windows PowerShell:**
+
+```powershell
+$env:ENABLE_JIRA="true"; npx playwright test
+```
+
+**Windows CMD:**
+
+```cmd
+set ENABLE_JIRA=true && npx playwright test
+```
+
+**Linux/macOS:**
+
+```sh
+ENABLE_JIRA=true npx playwright test
+```
+
+### 4. Steps to Reproduce in Jira Ticket
+
+- Only console logs starting with `>` will be included as steps to reproduce in the Jira ticket.
+- Example:
+
+  ```js
+  console.info('> Step 1: Go to login page');
+  console.info('> Step 2: Enter credentials');
+  ```
+
+### 5. Duplicate Ticket Handling
+
+Duplicate filtering is done using the **Summary**.
+
+#### Rule 1: Search by Summary
+- The reporter searches Jira using the **exact/normalized Summary** that it generates for the failure.
+
+#### Rule 2: If ticket found → check Status
+- If Jira issue exists with the same Summary:
+  - If status is **Done** (or any “closed” state configured as done):
+    - ✅ Create a **new ticket** (because previous one is already closed)
+  - Else (To Do / In Progress / Open / etc.):
+    - Continue to Rule 3
+
+#### Rule 3: If ticket is not Done → compare Environment
+- If the found ticket is **not Done**:
+  - If the **environment is the SAME** as the current run:
+    - ⛔ Consider it a duplicate → **skip creating**
+  - If the **environment is DIFFERENT** than the current run:
+    - ✅ Create a **new ticket** (because same bug happened in a different env)
+
+## Troubleshooting
+
+- Ensure your Jira credentials and project settings are correct in `jiraReporter.ts`.
+- Make sure `jiraReporter.ts` is compiled to `./dist/utils/jiraReporter.js` before running tests.
+- Check the Playwright and reporter logs for any errors.
+
+## Security
+
+- Do not commit sensitive Jira credentials to version control.
+- Use environment variables or a secure vault for secrets in production.
+
+---
+
+For questions or improvements, contact the project maintainer.
