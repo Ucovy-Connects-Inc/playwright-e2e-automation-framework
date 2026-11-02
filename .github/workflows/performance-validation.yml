@@ -1,0 +1,56 @@
+name: Performance framework validation
+on:
+  pull_request:
+    paths:
+      - 'config/performance.config.js'
+      - 'utils/performance/**'
+      - 'tests/performance/**'
+      - 'scripts/performance-fixture-server.cjs'
+      - '.github/workflows/performance-validation.yml'
+      - 'playwright.config.js'
+      - 'package.json'
+  workflow_dispatch:
+jobs:
+  performance-framework:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Unit checks
+        run: node --test tests/performance/metrics.unit.test.cjs
+      - name: Start local fixture
+        run: |
+          node scripts/performance-fixture-server.cjs > /tmp/performance-fixture.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4177/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/performance-fixture.log
+          exit 1
+      - name: Run local integration smoke
+        env:
+          PERF_BASE_URL: http://127.0.0.1:4177
+          PERF_API_PATH: /health
+          PERF_BROWSER_PATH: /
+          PERF_USERS: '2'
+          PERF_ITERATIONS: '5'
+          PERF_P95_MS: '10000'
+          PERF_MAX_ERROR_RATE: '0'
+          CI: 'true'
+        run: npx playwright test tests/performance/api-performance.spec.js tests/performance/browser-performance.spec.js --project=chromium-ai-visual --workers=1
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-framework-validation
+          path: |
+            test-results/
+            /tmp/performance-fixture.log
+          if-no-files-found: ignore
